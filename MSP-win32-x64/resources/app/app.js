@@ -13,7 +13,6 @@ const app = express();
 const publicPath = path.join(__dirname, 'public');
 const assetCachePath = path.join(__dirname, 'asset-cache');
 const amfDumpPath = path.join(__dirname, 'amf-dumps');
-const dbPath = path.join(__dirname, 'msp-db.json');
 const debugLogPath = path.join(__dirname, 'msp-debug.log');
 const serverPidPath = path.join(__dirname, 'msp-server.pid');
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
@@ -1129,15 +1128,24 @@ const registrationAssetAlias = (cleanPath) => {
 };
 
 const legacyMspAssetCandidates = (cleanPath, query) => {
-    const normalized = decodeURIComponent(String(cleanPath || '')).replace(/\\/g, '/').toLowerCase();
-    if (!/^swf\/(?:animations|faceparts)\/.+\.swf$/.test(normalized)) {
-        return [];
+    const rawPath = String(cleanPath || '').replace(/\\/g, '/');
+    let decodedPath = rawPath;
+    try {
+        decodedPath = decodeURIComponent(rawPath).replace(/\\/g, '/');
+    } catch (_) {
+        decodedPath = rawPath;
     }
-    return [
-        `${legacyMspAssetBaseUrl}/${cleanPath}${query}`,
-        `${legacyMspAssetBaseUrl}/${encodeURI(decodeURIComponent(cleanPath)).replace(/%2F/gi, '/')}${query}`,
-        `${legacyMspAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`
-    ];
+
+    const encodedPath = encodeURI(decodedPath).replace(/%2F/gi, '/');
+    const lowerDecodedPath = decodedPath.toLowerCase();
+    const lowerEncodedPath = encodedPath.toLowerCase();
+
+    return Array.from(new Set([
+        `${legacyMspAssetBaseUrl}/${decodedPath}${query}`,
+        `${legacyMspAssetBaseUrl}/${encodedPath}${query}`,
+        `${legacyMspAssetBaseUrl}/${lowerDecodedPath}${query}`,
+        `${legacyMspAssetBaseUrl}/${lowerEncodedPath}${query}`
+    ]));
 };
 
 const isLikelyBadAnimationCache = (cleanPath, filePath) => {
@@ -1198,14 +1206,14 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
     ] : [];
 
     const candidates = [
-        ...legacyMspAssetCandidates(cleanPath, query),
         ...(aliasPath ? [
             `${remoteAssetBaseUrl}/${aliasPath}${query}`,
             `${remoteAssetBaseUrl}/${aliasPath.toLowerCase()}${query}`
         ] : []),
         `${remoteAssetBaseUrl}/${cleanPath}${query}`,
         `${remoteAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`,
-        ...officialAssetCandidates
+        ...officialAssetCandidates,
+        ...legacyMspAssetCandidates(cleanPath, query)
     ];
 
     for (const remoteUrl of candidates) {
@@ -2866,26 +2874,14 @@ const ensureDbShape = (state) => {
 };
 
 const loadJsonDb = () => {
-    try {
-        if (fs.existsSync(dbPath)) {
-            const existing = ensureDbShape(JSON.parse(fs.readFileSync(dbPath, 'utf8')));
-            if (!Array.isArray(existing.catalog.clothes) || existing.catalog.clothes.length === 0) {
-                fs.writeFileSync(dbPath, JSON.stringify(existing, null, 2));
-            }
-            return existing;
-        }
-    } catch (err) {
-        log(`[DB] Nie udalo sie wczytac bazy, tworze nowa: ${err.message}`);
-    }
-    const created = defaultDb();
-    fs.writeFileSync(dbPath, JSON.stringify(created, null, 2));
-    log(`[DB] Utworzono lokalna baze: ${dbPath} (${created.catalog.clothes.length} ubran)`);
+    const created = ensureDbShape(defaultDb());
+    log(`[DB] Uzywam bazy w pamieci RAM, bez tworzenia msp-db.json (${created.catalog.clothes.length} ubran)`);
     return created;
 };
 
 const loadMongoDb = async () => {
     if (!mongoUri) {
-        log('[DB] MONGODB_URI nie ustawione, uzywam msp-db.json');
+        log('[DB] MONGODB_URI nie ustawione, uzywam bazy w pamieci RAM bez msp-db.json');
         return null;
     }
 
@@ -2912,7 +2908,7 @@ const loadMongoDb = async () => {
         return state;
     } catch (err) {
         dbSource = 'json';
-        log(`[DB] MongoDB niedostepne (${err.message}), uzywam msp-db.json`);
+        log(`[DB] MongoDB niedostepne (${err.message}), uzywam bazy w pamieci RAM bez msp-db.json`);
         if (mongoClient) {
             await mongoClient.close().catch(() => {});
         }
@@ -2945,7 +2941,7 @@ const saveDb = async () => {
         );
         return;
     }
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+    // Brak MongoDB = tylko RAM. Nic nie zapisuje do msp-db.json.
 };
 
 const isDevCredentials = (requestBody) => {
