@@ -1790,11 +1790,12 @@ const soapActorDetails2010Xml = (actorId = 1, name = 'admin', password = 'admin'
         + `<Mouth>${soapNode('MouthId', 4)}${soapNode('Name', 'Basic Boy')}${soapNode('SWF', 'male_mouth_1')}${soapNode('SkinId', 2)}</Mouth>`;
 };
 
+let lastSoapActorId = 1;
 let lastSoapActorName = 'admin';
 let lastSoapActorPassword = 'admin';
 const makeLocalTicket = (actorId = 1) => `local-${actorId}-${crypto.randomBytes(12).toString('hex')}`;
 
-const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
+const handleSoapCompatibilityRequest = async (req, res, serviceLabel = 'SOAP') => {
     const action = soapActionFrom(req);
     const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8').replace(/\s+/g, ' ').slice(0, 260) : '';
     log(`[${serviceLabel}] ${req.method} ${req.url} action=${action} body=${body}`);
@@ -1828,6 +1829,19 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
         sendSoapResult(res, 'GetMovieCount', '0');
         return;
     }
+    if (/IsActorNameUsed|IsNameUsed|NameUsed|ActorNameExists|UsernameExists|IsUsernameUsed/i.test(action)) {
+        const checkedName = extractSoapText(req, ['actorName', 'ActorName', 'name', 'Name', 'username', 'Username'], '');
+        const used = Boolean(findUserByName(checkedName));
+        log(`[SOAP NAME CHECK] ${action} name=${checkedName || '(empty)'} -> ${used ? 'true' : 'false'}`);
+        sendSoapResult(res, action, used ? 'true' : 'false');
+        return;
+    }
+    if (/IsActorNameValid|ValidateActorName|IsActorNameAllowed|IsNameValid|ValidateName/i.test(action)) {
+        const checkedName = extractSoapText(req, ['actorName', 'ActorName', 'name', 'Name', 'username', 'Username'], '');
+        log(`[SOAP NAME VALID] ${action} name=${checkedName || '(empty)'} -> true`);
+        sendSoapResult(res, action, 'true');
+        return;
+    }
     if (/LoadActorWithCurrentClothesBasicDataOnly/i.test(action)) {
         log('[SOAP ACTOR BASIC] MSPRetro-compatible actor');
         sendSoapResult(res, 'LoadActorWithCurrentClothesBasicDataOnly', soapActorDetails2010Xml(1, 'admin', 'admin'));
@@ -1836,11 +1850,14 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
     if (/CreateNewUserOld|CreateNewUser/i.test(action)) {
         const username = extractSoapText(req, ['Name', 'ChosenActorName', 'username'], `player${Date.now()}`).slice(0, 20) || `player${Date.now()}`;
         const password = extractSoapText(req, ['Password', 'ChosenPassword', 'password'], 'admin') || 'admin';
-        const ticket = makeLocalTicket(1);
-        lastSoapActorName = username || 'admin';
+        const account = await createSoapAccount(username, password);
+        const actorId = Number(account.actor.actorId) || 1;
+        const ticket = makeLocalTicket(actorId);
+        lastSoapActorId = actorId;
+        lastSoapActorName = account.actor.name || username || 'admin';
         lastSoapActorPassword = password || 'admin';
-        log(`[SOAP CREATE USER FINAL] username=${username}`);
-        sendSoapResult(res, action, soapActorDetails2010Xml(1, username, password), ticket);
+        log(`[SOAP CREATE USER FINAL] username=${lastSoapActorName} actorId=${actorId} saved=${account.created ? 'yes' : 'exists'}`);
+        sendSoapResult(res, action, soapActorDetails2010Xml(actorId, lastSoapActorName, password), ticket);
         return;
     }
     if (/SaveEntitySnapshot/i.test(action)) {
@@ -1855,8 +1872,8 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
         return;
     }
     if (/LoadActorDetails|LoadActorDetails2|LoadActorDetailsSecure|LoadActor/i.test(action)) {
-        log(`[SOAP LOAD ACTOR DETAILS] ${lastSoapActorName}`);
-        sendSoapResult(res, action, soapActorDetails2010Xml(1, lastSoapActorName, lastSoapActorPassword), makeLocalTicket(1));
+        log(`[SOAP LOAD ACTOR DETAILS] ${lastSoapActorName} actorId=${lastSoapActorId}`);
+        sendSoapResult(res, action, soapActorDetails2010Xml(lastSoapActorId || 1, lastSoapActorName, lastSoapActorPassword), makeLocalTicket(lastSoapActorId || 1));
         return;
     }
     if (/GetServerTime|GetTime|ServerTime/i.test(action)) {
@@ -1871,9 +1888,13 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
     }
     if (/Login/i.test(action)) {
         const username = extractSoapText(req, ['username', 'Name'], lastSoapActorName || 'admin') || lastSoapActorName || 'admin';
-        const ticket = makeLocalTicket(1);
-        log(`[SOAP LOGIN MSPRETRO] username=${username}`);
-        sendSoapResult(res, 'Login', `<status>Success</status><actor>${soapActorDetails2010Xml(1, username, 'admin')}</actor><blockedIpAsInt>0</blockedIpAsInt><actorLocale><string>en_US</string></actorLocale>`, ticket);
+        const user = findUserByName(username);
+        const actorId = user ? Number(user.actorId) || 1 : (lastSoapActorId || 1);
+        lastSoapActorId = actorId;
+        lastSoapActorName = username;
+        const ticket = makeLocalTicket(actorId);
+        log(`[SOAP LOGIN MSPRETRO] username=${username} actorId=${actorId}`);
+        sendSoapResult(res, 'Login', `<status>Success</status><actor>${soapActorDetails2010Xml(actorId, username, 'admin')}</actor><blockedIpAsInt>0</blockedIpAsInt><actorLocale><string>en_US</string></actorLocale>`, ticket);
         return;
     }
 
@@ -1887,16 +1908,28 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
     }
 
     const safeAction = /^[A-Za-z_][A-Za-z0-9_]*$/.test(action) && action !== 'Unknown' ? action : 'GetIPLoginType';
+    if (/IsActorNameUsed|IsNameUsed|NameUsed|ActorNameExists|UsernameExists|IsUsernameUsed/i.test(safeAction)) {
+        log(`[SOAP FALLBACK NAME FALSE] action=${safeAction}`);
+        sendSoapResult(res, safeAction, 'false');
+        return;
+    }
     log(`[SOAP FALLBACK TRUE] action=${safeAction}`);
     sendSoapResult(res, safeAction, 'true');
 };
 
-app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
+app.all(/^\/+WebService\/+Service\.asmx\/?$/i, async (req, res) => {
     if (req.method === 'GET' || /wsdl/i.test(req.url)) {
         res.type('text/xml').send(serviceWsdl);
         return;
     }
-    handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
+    try {
+        await handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
+    } catch (err) {
+        log(`[SOAP SERVICE ERROR] ${err.stack || err.message}`);
+        if (!res.headersSent) {
+            sendSoapResult(res, 'Error', 'false');
+        }
+    }
 });
 
 app.all(/^\/+WebService\/User\/UserService\.asmx$/i, (req, res) => {
@@ -3107,8 +3140,13 @@ const loadMongoDb = async () => {
 
 const loadDb = async () => {
     if (useRemoteGateway) {
-        dbSource = 'remote';
         log(`[DB] Uzywam zdalnej bramy: ${remoteGatewayUrl}`);
+        const mongoState = await loadMongoDb();
+        if (mongoState) {
+            log(`[DB] Zdalna brama aktywna, ale konta zapisuje do MongoDB: ${mongoDbName}.${mongoStateCollection}`);
+            return mongoState;
+        }
+        dbSource = 'remote-memory';
         return loadJsonDb();
     }
     const mongoState = await loadMongoDb();
@@ -3129,6 +3167,83 @@ const saveDb = async () => {
         return;
     }
     // Brak MongoDB = tylko RAM. Nic nie zapisuje do msp-db.json.
+};
+
+const persistAccountDocuments = async (user, actor) => {
+    if (!mongoClient || !mongoDatabase || !user || !actor) return false;
+    await mongoDatabase.collection('users').updateOne(
+        { usernameLower: String(user.username || '').toLowerCase() },
+        { $set: { ...user, usernameLower: String(user.username || '').toLowerCase() } },
+        { upsert: true }
+    );
+    await mongoDatabase.collection('actors').updateOne(
+        { actorId: Number(actor.actorId) },
+        { $set: actor },
+        { upsert: true }
+    );
+    return true;
+};
+
+const createSoapAccount = async (username, password) => {
+    const cleanUsername = String(username || '').trim().slice(0, 20) || `player${Date.now()}`;
+    const cleanPassword = String(password || 'admin');
+
+    let existing = findUserByName(cleanUsername);
+    if (existing) {
+        const existingActor = findActorById(existing.actorId) || null;
+        log(`[SOAP ACCOUNT EXISTS] username=${cleanUsername} actorId=${existing.actorId}`);
+        return {
+            user: existing,
+            actor: existingActor || {
+                actorId: existing.actorId,
+                name: cleanUsername,
+                level: 1,
+                money: 25000,
+                diamonds: 0,
+                fame: 0,
+                fortune: 0,
+                createdAt: new Date().toISOString()
+            },
+            created: false
+        };
+    }
+
+    const actorId = nextActorId();
+    const now = new Date().toISOString();
+    const actor = {
+        actorId,
+        name: cleanUsername,
+        level: 1,
+        money: 25000,
+        diamonds: 0,
+        fame: 0,
+        fortune: 0,
+        skinSWF: 'swf/skins/maleskin.swf',
+        skinColor: '16764057',
+        eyeId: 2,
+        noseId: 4,
+        mouthId: 4,
+        createdAt: now,
+        lastLogin: now
+    };
+    const user = {
+        id: actorId,
+        username: cleanUsername,
+        passwordHash: hashPassword(cleanPassword),
+        actorId,
+        role: 'player',
+        createdAt: now
+    };
+
+    db = ensureDbShape(db);
+    db.users.push(user);
+    db.actors.push(actor);
+    db.inventory[String(actorId)] = starterClothes().slice(0, 6);
+    await saveDb();
+    await persistAccountDocuments(user, actor);
+
+    log(`[SOAP ACCOUNT SAVED] username=${cleanUsername} actorId=${actorId} source=${mongoClient && mongoDatabase ? 'mongodb' : 'ram'}`);
+    return { user, actor, created: true };
 };
 
 const isDevCredentials = (requestBody) => {
