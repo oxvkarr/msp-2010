@@ -1,0 +1,2 @@
+MSP-win32-x64/MSP.exe filter=lfs diff=lfs merge=lfs -text
+MSP-win32-x64/MSP-Debug.exe filter=lfs diff=lfs merge=lfs -text
