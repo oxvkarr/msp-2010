@@ -9,6 +9,7 @@ const amfjs = require('amfjs');
 const { MongoClient } = require('mongodb');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
+const APP_BUILD = '2010-render-mongo-hybrid-v15';
 
 const publicPath = path.join(__dirname, 'public');
 const assetCachePath = path.join(__dirname, 'asset-cache');
@@ -25,14 +26,14 @@ const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
 const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
 const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE !== '0';
-const remoteGatewayUrl = (process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
+const remoteGatewayUrl = (process.env.REMOTE_GATEWAY || process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
 const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 15000);
 const realMspProxyEnabled = process.env.REAL_MSP_PROXY === '1';
 const realMspServer = (process.env.REAL_MSP_SERVER || 'pl').toLowerCase() === 'uk' ? 'gb' : (process.env.REAL_MSP_SERVER || 'pl').toLowerCase();
 const realMspGatewayUrl = `https://ws-${realMspServer}.mspapis.com/Gateway.aspx`;
 const isDebugMode = process.env.MSP_DEBUG === '1';
 const isServerOnly = process.env.MSP_SERVER_ONLY === '1' || process.argv.includes('--server');
-const useRemoteGateway = Boolean(remoteGatewayUrl) && !isServerOnly;
+const useRemoteGateway = (process.env.USE_REMOTE_GATEWAY === '1') && Boolean(remoteGatewayUrl);
 const isCreateNewUserMethod = (method) => /MovieStarPlanet\.WebService\.User\.(AMFUserServiceWeb|AMFUserService)\.(CreateNewUser|CreateNewUserOld)$/i.test(method || '');
 // Dodajemy nową linię dla logowania:
 const isLoginMethod = (method) => /MovieStarPlanet\.WebService\.User\.(AMFUserServiceWeb|AMFUserService)\.Login$/i.test(method || '');
@@ -77,7 +78,7 @@ const buildFlashVars = (baseUrl = '/', wsUrl = '/') => {
         startupParams,
         `resourceModuleUrl=${encodeURIComponent(`swf/locales/${forcedLocalePath}_resourcemodule.swf?v=Main_2010123_95850`)}`,
         'swfVer=Main_2010123_95850',
-        'translationsVersion=2010123_95850',
+        'translationsVersion=2016112_16431',
         `newWsPath=${encodeURIComponent(cleanWs)}`,
         `wsPath=${encodeURIComponent(cleanWs)}`,
         `wspath=${encodeURIComponent(cleanWs)}`,
@@ -89,21 +90,7 @@ const buildFlashVars = (baseUrl = '/', wsUrl = '/') => {
         `cdnLocalBasePath=${encodeURIComponent(cleanBase)}`,
         `cdnPath=${encodeURIComponent(cleanBase)}`,
         `cdnpath=${encodeURIComponent(cleanBase)}`,
-        `appUrl=${encodeURIComponent(cleanBase)}`,
-
-        // MSP 2010/FMS/RTMPT - bez tego klient potrafi wracać do hardcodowanego helloserver.
-        'chatFMSServer=127.0.0.1',
-        'chatGameFMSServer=127.0.0.1',
-        'CommFMSServer=127.0.0.1',
-        'testFMSServer=127.0.0.1',
-        'fmsServer=127.0.0.1',
-        'FmsServer=127.0.0.1',
-        'chatServer=127.0.0.1',
-        'ChatServer=127.0.0.1',
-        'MessageServerUrl=http%3A%2F%2F127.0.0.1%2F',
-        'XmppServerUrl=127.0.0.1',
-        'XmppUseLocalhost=true',
-        'XMPPFeatureState=false'
+        `appUrl=${encodeURIComponent(cleanBase)}`
     ].join('&');
 };
 let mongoClient = null;
@@ -177,51 +164,6 @@ app.all('/crossdomain.xml', (req, res) => {
     log(`[POLICY] ${req.headers.host || ''}${req.url}`);
     res.set('Content-Type', 'text/x-cross-domain-policy');
     res.send(FLASH_POLICY_XML);
-});
-
-
-// Minimalny lokalny stub RTMPT/FMS dla starego klienta Flash.
-// Klient MSP 2010 pyta m.in. /fcs/ident2 i /open/1.
-// To nie jest prawdziwy chat, tylko odpowiedź żeby klient nie wywalał "Failed connecting".
-const rtmptSessions = new Set();
-
-app.all('/fcs/ident2', (req, res) => {
-    log(`[RTMPT] ${req.method} ${req.url} ident2`);
-    res.status(404).type('application/x-fcs').send('Not found');
-});
-
-app.all('/open/:version', (req, res) => {
-    const sessionId = String(Date.now()) + String(Math.floor(Math.random() * 10000));
-    rtmptSessions.add(sessionId);
-    log(`[RTMPT] ${req.method} ${req.url} -> session=${sessionId}`);
-    res.type('application/x-fcs').send(sessionId);
-});
-
-app.all('/idle/:session/:sequence', (req, res) => {
-    const sessionId = String(req.params.session || '');
-    if (sessionId && !rtmptSessions.has(sessionId)) {
-        rtmptSessions.add(sessionId);
-    }
-    log(`[RTMPT] ${req.method} ${req.url} idle`);
-    res.type('application/x-fcs').send('\x01');
-});
-
-app.all('/send/:session/:sequence', (req, res) => {
-    const sessionId = String(req.params.session || '');
-    if (sessionId && !rtmptSessions.has(sessionId)) {
-        rtmptSessions.add(sessionId);
-    }
-    log(`[RTMPT] ${req.method} ${req.url} send bytes=${Buffer.isBuffer(req.body) ? req.body.length : 0}`);
-    res.type('application/x-fcs').send('\x00');
-});
-
-app.all('/close/:session/:sequence?', (req, res) => {
-    const sessionId = String(req.params.session || '');
-    if (sessionId) {
-        rtmptSessions.delete(sessionId);
-    }
-    log(`[RTMPT] ${req.method} ${req.url} close`);
-    res.type('application/x-fcs').send('\x00');
 });
 
 const requestBaseUrl = (req) => requestPublicBaseUrl(req);
@@ -463,13 +405,13 @@ const fallbackPlayHtml = (req) => {
     </style>
 </head>
 <body>
-    <object id="Main_2010123_95850" name="Main_2010123_95850" type="application/x-shockwave-flash" data="/Main_2010123_95850.swf?${startupParams}">
+    <object id="msp" type="application/x-shockwave-flash" data="/Main_2010123_95850.swf?${startupParams}">
         <param name="movie" value="/Main_2010123_95850.swf?${startupParams}">
         <param name="allowScriptAccess" value="always">
         <param name="allowFullScreen" value="true">
         <param name="wmode" value="direct">
         <param name="flashvars" value="${flashVars}">
-        <embed src="/Main_2010123_95850.swf?${startupParams}" name="Main_2010123_95850" allowScriptAccess="always" allowFullScreen="true" wmode="direct" flashvars="${flashVars}">
+        <embed src="/Main_2010123_95850.swf?${startupParams}" allowScriptAccess="always" allowFullScreen="true" wmode="direct" flashvars="${flashVars}">
     </object>
     <div id="debug-console">
         <header id="debug-drag">
@@ -496,7 +438,7 @@ const fallbackPlayHtml = (req) => {
                 <div id="light-db" class="debug-light warn"><span class="debug-light-dot"></span><span>Baza</span></div>
             </section>
             <section id="debug-links">
-                <button class="secondary debug-link" data-url="https://msp-2010.onrender.com/api/health" type="button">Health</button>
+                <button class="secondary debug-link" data-url="https://msp-2016.onrender.com/api/health" type="button">Health</button>
                 <button class="secondary debug-link" data-url="https://dashboard.render.com" type="button">Render</button>
                 <button class="secondary debug-link" data-url="https://cloud.mongodb.com" type="button">MongoDB</button>
                 <button class="secondary debug-link" data-url="https://dash.cloudflare.com" type="button">R2</button>
@@ -545,55 +487,7 @@ const fallbackPlayHtml = (req) => {
                 }
             });
             window.adf = window.adf || { Params: {}, track: flashStub('adf.track') };
-
-            window.fileVersion = window.fileVersion || 'Main_2010123_95850';
-
-            window.getFlashPlayer = window.getFlashPlayer || function () {
-                return document.getElementById(window.fileVersion) || window[window.fileVersion] || document[window.fileVersion] || document.getElementById('msp');
-            };
-
-            window.getFp = function () {
-                var fp = 'local-' + navigator.userAgent + '-' + screen.width + 'x' + screen.height;
-                setTimeout(function () {
-                    var flashPlayer = window.getFlashPlayer();
-                    if (flashPlayer && typeof flashPlayer.fpCallback === 'function') {
-                        try {
-                            flashPlayer.fpCallback(fp);
-                            console.log('[JS] fpCallback -> Flash');
-                        } catch (error) {
-                            console.log('[JS] fpCallback error', error && error.message ? error.message : error);
-                        }
-                    } else {
-                        console.log('[JS] fpCallback not available yet');
-                    }
-                }, 0);
-                return fp;
-            };
-
-            window.setCookie = window.setCookie || function (c_name, value, exdays) {
-                var exdate = new Date();
-                exdate.setDate(exdate.getDate() + (exdays || 365));
-                document.cookie = c_name + '=' + escape(value) + '; expires=' + exdate.toUTCString() + '; path=/';
-                return true;
-            };
-
-            window.getCookie = window.getCookie || function (c_name) {
-                var cookies = document.cookie.split(';');
-                for (var i = 0; i < cookies.length; i++) {
-                    var pair = cookies[i].split('=');
-                    var key = pair.shift().replace(/^\s+|\s+$/g, '');
-                    if (key === c_name) return unescape(pair.join('='));
-                }
-                return '';
-            };
-
-            window.callFlashPlayer = window.callFlashPlayer || function () {
-                var flashPlayer = window.getFlashPlayer();
-                if (flashPlayer && typeof flashPlayer.browserUnload === 'function') {
-                    try { flashPlayer.browserUnload(); } catch (error) {}
-                }
-                return true;
-            };
+            window.getFp = window.getFp || function () { return 'local-debug-fingerprint'; };
         }());
         (function () {
             var debug = new URLSearchParams(location.search).get('debug') === '1';
@@ -914,7 +808,7 @@ const localCountry = (country, iso, locale, txt, enabled = false) => ({
     sys_cap: locale.split('_')[0],
     ISO_3166: iso,
     txt,
-    supportMail: 'support@msp-2010.local',
+    supportMail: 'support@msp-2016.local',
     cdnLocalBasePath: 'http://127.0.0.1/',
     infoSiteMap: 'http://127.0.0.1/'
 });
@@ -1191,19 +1085,47 @@ const warmRemoteGateway = () => new Promise((resolve) => {
 
 const registrationAssetAlias = (cleanPath) => {
     const normalized = decodeURIComponent(String(cleanPath || '')).replace(/\\/g, '/').toLowerCase();
-
-    // Nie mapujemy kategorii na ikony ani na losowe ubrania.
-    // Jak klient pyta o /swf/hair/swf/hair.swf, to znaczy że SOAP nadal ma zły SWF.
-    const categoryPlaceholders = new Set([
-        'swf/hair/swf/hair.swf',
-        'swf/tops/swf/tops.swf',
-        'swf/bottoms/swf/bottoms.swf',
-        'swf/footwear/swf/footwear.swf'
-    ]);
-    if (categoryPlaceholders.has(normalized)) {
-        return null;
+    if (normalized === 'swf/tops/nickelodeon_spotlight_girlstop_fj.swf') {
+        return 'swf/stuff/nickelodeon_spotlight_girlstop_fj.swf';
     }
-
+    if (normalized === 'swf/tops/nickelodeon_spotlight_boystop_fj.swf') {
+        return 'swf/stuff/nickelodeon_spotlight_boystop_fj.swf';
+    }
+    if (normalized === 'swf/tops/birthdaycampaign_2013_boystop_ms_mf.swf') {
+        return 'swf/stuff/birthdaycampaign_2013_boystop_ms_mf.swf';
+    }
+    if (normalized === 'swf/tops/cindarella whipped cream overwhelming disney dress.swf') {
+        return 'swf/stuff/cindarella whipped cream overwhelming disney dress.swf';
+    }
+    if (normalized === 'swf/bottoms/nickelodeon_2015_maletopred_mf.swf') {
+        return 'swf/stuff/nickelodeon_2015_maletopred_mf.swf';
+    }
+    if (normalized === 'swf/hair/hair_2.swf') {
+        return 'swf/world/shopicons/hair.swf';
+    }
+    if (normalized === 'swf/hair/hair_male.swf') {
+        return 'swf/world/shopicons/hair_male.swf';
+    }
+    if (normalized === 'swf/footwear/shoes.swf') {
+        return 'swf/world/shopicons/shoes.swf';
+    }
+    if (normalized === 'swf/footwear/shoes_male.swf') {
+        return 'swf/world/shopicons/shoes_male.swf';
+    }
+    const dragonboneEyeMatch = normalized.match(/^swf\/faceparts\/eyes\/([^/]+)\/texture\.swf$/);
+    if (dragonboneEyeMatch) {
+        return `swf/dragonbone_faceparts/eyes/${dragonboneEyeMatch[1]}/texture.swf`;
+    }
+    const dragonboneEyeShadowMatch = normalized.match(/^swf\/faceparts\/eyeshadow\/([^/]+)\/texture\.swf$/);
+    if (dragonboneEyeShadowMatch) {
+        return `swf/dragonbone_faceparts/eyeshadow/${dragonboneEyeShadowMatch[1]}/texture.swf`;
+    }
+    if (/^swf\/tops\//.test(normalized)) {
+        return /(?:boy|male|_mf|maletop)/.test(normalized) ? 'swf/world/shopicons/tops_male.swf' : 'swf/world/shopicons/tops.swf';
+    }
+    if (/^swf\/bottoms\//.test(normalized)) {
+        return /(?:boy|male|_mf|maletop|bottoms_male)/.test(normalized) ? 'swf/world/shopicons/bottoms_male.swf' : 'swf/world/shopicons/bottoms.swf';
+    }
     return null;
 };
 
@@ -1540,36 +1462,28 @@ const xmlEscape = (value) => String(value ?? '')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
-const soapEnvelope = (action, resultXml = '', ticket = 'null') => {
-    const header = ticket && ticket !== 'null' ? `
-    <soap:Header>
-      <TicketHeader xmlns="http://moviestarplanet.com/">
-        <Ticket>${xmlEscape(ticket)}</Ticket>
-      </TicketHeader>
-    </soap:Header>` : '';
-    return `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">${header}
+const soapEnvelope = (action, innerXml) => `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <soap:Body>
     <${action}Response xmlns="http://moviestarplanet.com/">
-      <${action}Result>${resultXml}</${action}Result>
+      ${innerXml}
     </${action}Response>
   </soap:Body>
 </soap:Envelope>`;
-};
 
 const soapActionFrom = (req) => {
     const headerAction = String(req.headers.soapaction || '').replace(/"/g, '').split('/').pop();
     if (headerAction) return headerAction;
     const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
     const matches = [...body.matchAll(/<([A-Za-z0-9_:]+)(?:\s|>)/g)]
-        .map((match) => match[1].replace(/^(soap|soap12|SOAP-ENV):/i, '').replace(/^tns:/i, ''))
-        .filter((name) => !/^(Envelope|Header|Body|TicketHeader|Ticket)$/i.test(name));
+        .map((match) => match[1].replace(/^(soap|soap12):/i, ''))
+        .filter((name) => !/^(Envelope|Header|Body|TicketHeader)$/i.test(name));
     return matches[0] || 'Unknown';
 };
 
-const sendSoapResult = (res, action, resultXml = '', ticket = 'null') => {
+const sendSoapResult = (res, action, resultXml) => {
     res.set('Content-Type', 'text/xml; charset=utf-8');
-    res.send(soapEnvelope(action, resultXml, ticket));
+    res.send(soapEnvelope(action, resultXml));
 };
 
 const soapStringValues = (req) => {
@@ -1579,34 +1493,31 @@ const soapStringValues = (req) => {
         .filter(Boolean);
 };
 
-const extractSoapText = (req, names, fallback = '') => {
-    const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
-    for (const name of names) {
-        const pattern = new RegExp(`<(?:tns:)?${name}[^>]*>([\\s\\S]*?)<\\/(?:tns:)?${name}>`, 'i');
-        const match = body.match(pattern);
-        if (match) return match[1].replace(/<[^>]+>/g, '').trim();
-    }
-    return fallback;
-};
-
 const soapAppSettingsXml = (keys = []) => {
     const requested = keys.length > 0 ? keys : Object.keys(appSettingDefaults);
-    return requested.map((name) => {
+    const items = requested.map((name) => {
         const safeName = xmlEscape(name);
         const safeValue = xmlEscape(appSettingValue(name));
         return `<AppSetting><name>${safeName}</name><value>${safeValue}</value><Name>${safeName}</Name><Value>${safeValue}</Value></AppSetting>`;
     }).join('');
+    return `<GetAppSettingsResult>${items}</GetAppSettingsResult>`;
 };
 
 const userServiceWsdl = `<?xml version="1.0" encoding="utf-8"?>
 <definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://moviestarplanet.com/" targetNamespace="http://moviestarplanet.com/">
-  <service name="UserService"><documentation>Local MSP compatibility endpoint</documentation></service>
+  <service name="UserService">
+    <documentation>Local MSP compatibility endpoint</documentation>
+  </service>
 </definitions>`;
+
 
 const serviceWsdl = `<?xml version="1.0" encoding="utf-8"?>
 <definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://moviestarplanet.com/" targetNamespace="http://moviestarplanet.com/">
-  <service name="Service"><documentation>Local MSP 2010 compatibility endpoint</documentation></service>
+  <service name="Service">
+    <documentation>Local MSP 2010 compatibility endpoint</documentation>
+  </service>
 </definitions>`;
+
 
 const cleanSoapName = (name, fallback = 'item') => {
     const raw = String(name || fallback).replace(/^.*[.+]/, '');
@@ -1614,188 +1525,144 @@ const cleanSoapName = (name, fallback = 'item') => {
     return /^[A-Za-z_]/.test(safe) ? safe : fallback;
 };
 
-const soapNode = (name, value) => `<${cleanSoapName(name)}>${xmlEscape(value)}</${cleanSoapName(name)}>`;
-
-const clothXml = (id, categoryId, swfFolder, filename, colors = '', skinId = 0, categoryName = '', shopId = 1) => {
-    const cleanFilename = String(filename || '').replace(/^.*[\/]/, '');
-    const swfName = cleanFilename.replace(/\.swf$/i, '');
-
-    return `<Cloth>`
-        + soapNode('ClothesId', id)
-        + soapNode('Name', swfName)
-        + soapNode('SWF', swfName)
-        + soapNode('ClothesCategoryId', categoryId)
-        + soapNode('Price', 0)
-        + soapNode('ShopId', shopId)
-        + soapNode('SkinId', skinId)
-        + soapNode('Filename', cleanFilename)
-        + soapNode('Scale', 1)
-        + soapNode('Vip', 0)
-        + soapNode('RegNewUser', 1)
-        + soapNode('sortorder', id)
-        + soapNode('New', 0)
-        + soapNode('Discount', 0)
-        + `<ClothesCategory>`
-            + soapNode('ClothesCategoryId', categoryId)
-            + soapNode('Name', categoryName || `Category ${categoryId}`)
-            + soapNode('SlotTypeId', categoryId)
-            + `<SlotType>${soapNode('SlotTypeId', categoryId)}${soapNode('Name', categoryName || `Category ${categoryId}`)}</SlotType>`
-        + `</ClothesCategory>`
-    + `</Cloth>`;
+const soapXmlNode = (name, value, depth = 0) => {
+    const tag = cleanSoapName(name);
+    if (value === undefined || value === null) {
+        return `<${tag} xsi:nil="true" />`;
+    }
+    if (value instanceof Date) {
+        return `<${tag}>${xmlEscape(value.toISOString())}</${tag}>`;
+    }
+    if (typeof value !== 'object') {
+        return `<${tag}>${xmlEscape(value)}</${tag}>`;
+    }
+    if (Array.isArray(value)) {
+        const itemTag = cleanSoapName(value[0] && value[0].__class ? value[0].__class : 'item');
+        return `<${tag}>${value.map((item) => soapXmlNode(itemTag, item, depth + 1)).join('')}</${tag}>`;
+    }
+    if (depth > 8) {
+        return `<${tag} />`;
+    }
+    const body = Object.keys(value)
+        .filter((key) => key !== '__class')
+        .map((key) => soapXmlNode(key, value[key], depth + 1))
+        .join('');
+    return `<${tag}>${body}</${tag}>`;
 };
-
-const actorClothesRelXml = (relId, clothId, color, clothBody) => `<ActorClothesRel>`
-    + soapNode('ActorClothesRelId', relId)
-    + soapNode('ActorId', 1)
-    + soapNode('ClothesId', clothId)
-    + soapNode('Color', color)
-    + soapNode('IsWearing', 1)
-    + soapNode('x', 0)
-    + soapNode('y', 0)
-    + `<Cloth>${clothBody.replace(/^<Cloth>|<\/Cloth>$/g, '')}</Cloth>`
-    + `</ActorClothesRel>`;
-
-const starterRegisterClothesXml = () => [
-    // Boy, SkinId 2
-    clothXml(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2, 'Hair', 4),
-    clothXml(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2, 'Tops', 1),
-    clothXml(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2, 'Bottoms', 1),
-    clothXml(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2, 'Shoes', 3),
-
-    // Girl, SkinId 1
-    clothXml(1021, 1, 'swf/hair', 'hair_5.swf', '0xff9900,0x663366', 1, 'Hair', 4),
-    clothXml(1011, 2, 'swf/tops', 'top_2_Honey.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1, 'Tops', 1),
-    clothXml(1052, 3, 'swf/bottoms', 'Honey_bottoms_8.swf', '0xff0066,0xfeffff', 1, 'Bottoms', 1),
-    clothXml(1028, 10, 'swf/footwear', 'shoes_2.swf', '0x6699cc,0x990000', 1, 'Shoes', 3)
-].join('');
 
 const soapRegisterNewUserDataXml = () => {
-    const eye = (id, name, swf, skinId) => `<Eye>${soapNode('EyeId', id)}${soapNode('Name', name)}${soapNode('SWF', swf)}${soapNode('SkinId', skinId)}</Eye>`;
-    const nose = (id, name, swf, skinId) => `<Nose>${soapNode('NoseId', id)}${soapNode('Name', name)}${soapNode('SWF', swf)}${soapNode('SkinId', skinId)}</Nose>`;
-    const mouth = (id, name, swf, skinId) => `<Mouth>${soapNode('MouthId', id)}${soapNode('Name', name)}${soapNode('SWF', swf)}${soapNode('SkinId', skinId)}</Mouth>`;
+    const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
+    const face = (tag, idName, id, swf, colors = '', reg = 3) => `<${tag}>`
+        + node(idName, id)
+        + node('Id', id)
+        + node('SWF', swf)
+        + node('_SWF', swf)
+        + node('DefaultColors', colors)
+        + node('_DefaultColors', colors)
+        + node('RegNewUser', reg)
+        + node('_RegNewUser', reg)
+        + node('Price', 0)
+        + node('Vip', false)
+        + node('SkinId', 0)
+        + node('sortorder', id)
+        + `</${tag}>`;
+    const cloth = (id, cat, swf, filename, colors = '', reg = 3) => `<Cloth>`
+        + node('ClothId', id)
+        + node('_ClothId', id)
+        + node('ClothesId', id)
+        + node('_ClothesId', id)
+        + node('Id', id)
+        + node('ClothesCategoryId', cat)
+        + node('_ClothesCategoryId', cat)
+        + node('SWF', swf)
+        + node('_SWF', swf)
+        + node('Filename', filename)
+        + node('_Filename', filename)
+        + node('ColorScheme', colors)
+        + node('_ColorScheme', colors)
+        + node('RegNewUser', reg)
+        + node('_RegNewUser', reg)
+        + node('Gender', reg)
+        + node('_Gender', reg)
+        + node('Price', 0)
+        + node('DiamondsPrice', 0)
+        + node('Vip', false)
+        + node('Scale', 1)
+        + node('ShopId', 0)
+        + node('SkinId', 0)
+        + node('sortorder', id)
+        + `<ClothesCategory>`
+        + node('ClothesCategoryId', cat)
+        + node('SlotTypeId', cat)
+        + `<SlotType>${node('SlotTypeId', cat)}</SlotType>`
+        + `</ClothesCategory>`
+        + `</Cloth>`;
+    const rel = (id, colors = '') => `<ActorClothesRel>`
+        + node('ActorClothesRelId', id)
+        + node('_ActorClothesRelId', id)
+        + node('ClothesId', id)
+        + node('_ClothesId', id)
+        + node('Color', colors)
+        + node('_Color', colors)
+        + node('IsWearing', true)
+        + node('_IsWearing', true)
+        + node('x', 0)
+        + node('y', 0)
+        + `</ActorClothesRel>`;
 
-    const xml = `<eyes><Eye>${eye(1, 'Basic Girl', 'eyes_1', 1).replace(/^<Eye>|<\/Eye>$/g, '')}</Eye><Eye>${eye(2, 'Basic Boy', 'male_eye1', 2).replace(/^<Eye>|<\/Eye>$/g, '')}</Eye></eyes>`
-        + `<noses><Nose>${nose(1, 'Cute Nose', 'nose_6', 1).replace(/^<Nose>|<\/Nose>$/g, '')}</Nose><Nose>${nose(4, 'Boy Nose', 'nose_4', 2).replace(/^<Nose>|<\/Nose>$/g, '')}</Nose></noses>`
-        + `<mouths><Mouth>${mouth(1, 'Basic Girl', 'female_mouth_1', 1).replace(/^<Mouth>|<\/Mouth>$/g, '')}</Mouth><Mouth>${mouth(4, 'Basic Boy', 'male_mouth_1', 2).replace(/^<Mouth>|<\/Mouth>$/g, '')}</Mouth></mouths>`
-        + `<clothes>${starterRegisterClothesXml()}</clothes>`;
-    log(`[SOAP REGISTER GENDER FMS FIX] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
+    const eye = face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2);
+    const nose = face('Nose', 'NoseId', 4, 'nose_3', '', 2);
+    const mouth = face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2);
+    const eyeShadow = face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 3);
+    const hair = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
+    const top = cloth(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2);
+    const bottom = cloth(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2);
+    const shoes = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
+    const rels = [
+        rel(1005, '0xcc0000,0xff6600,0xffff00'),
+        rel(1057, '0x666666'),
+        rel(1002, ''),
+        rel(1128, '0x6699cc,0x990000')
+    ].join('');
+    const actor = `<ActorDetails>`
+        + node('ActorId', 0)
+        + node('_ActorId', 0)
+        + node('Name', '')
+        + node('_Name', '')
+        + node('Gender', 'Male')
+        + node('_Gender', 'Male')
+        + node('SkinSWF', 'maleskin')
+        + node('_SkinSWF', 'maleskin')
+        + node('SkinColor', '0xffd1b3')
+        + node('_SkinColor', '0xffd1b3')
+        + node('EyeId', 2)
+        + node('NoseId', 4)
+        + node('MouthId', 4)
+        + node('EyeColors', '0x3a6eb5')
+        + node('MouthColors', 'skincolor,0xb64254')
+        + `<ActorClothesRels>${rels}</ActorClothesRels>`
+        + `<_ActorClothesRels>${rels}</_ActorClothesRels>`
+        + `</ActorDetails>`;
+
+    // Ten main 2010 bywa wybredny: jedne buildy szukaja pol z duzej litery,
+    // inne z malej albo z podkreslnikiem. Dlatego odpowiedz daje wszystkie aliasy.
+    const core = [
+        `<Eyes>${eye}</Eyes>`, `<eyes>${eye}</eyes>`, `<_eyes>${eye}</_eyes>`,
+        `<Noses>${nose}</Noses>`, `<noses>${nose}</noses>`, `<_noses>${nose}</_noses>`,
+        `<Mouths>${mouth}</Mouths>`, `<mouths>${mouth}</mouths>`, `<_mouths>${mouth}</_mouths>`,
+        `<EyeShadows>${eyeShadow}</EyeShadows>`, `<eyeShadows>${eyeShadow}</eyeShadows>`, `<_eyeShadows>${eyeShadow}</_eyeShadows>`,
+        `<Clothes>${hair}${top}${bottom}${shoes}</Clothes>`, `<clothes>${hair}${top}${bottom}${shoes}</clothes>`, `<_clothes>${hair}${top}${bottom}${shoes}</_clothes>`,
+        `<ActorClothesRels>${rels}</ActorClothesRels>`, `<actorClothesRels>${rels}</actorClothesRels>`, `<_actorClothesRels>${rels}</_actorClothesRels>`,
+        `<MaleActor>${actor}</MaleActor>`, `<maleActor>${actor}</maleActor>`, `<_maleActor>${actor}</_maleActor>`,
+        `<FemaleActor>${actor}</FemaleActor>`, `<femaleActor>${actor}</femaleActor>`, `<_femaleActor>${actor}</_femaleActor>`,
+        `<DefaultMaleActor>${actor}</DefaultMaleActor>`, `<defaultMaleActor>${actor}</defaultMaleActor>`, `<_defaultMaleActor>${actor}</_defaultMaleActor>`,
+        `<DefaultFemaleActor>${actor}</DefaultFemaleActor>`, `<defaultFemaleActor>${actor}</defaultFemaleActor>`, `<_defaultFemaleActor>${actor}</_defaultFemaleActor>`
+    ].join('');
+    const xml = `<LoadDataForRegisterNewUserResult>${core}<RegisterNewUserData>${core}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
+    log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
-
-
-const soapLoadClothesXml = (req) => {
-    const skinId = Number(extractSoapText(req, ['skinId', 'SkinId'], '2')) || 2;
-    const shopId = Number(extractSoapText(req, ['shopId', 'ShopId'], '1')) || 1;
-    const all = [
-        clothXml(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2, 'Hair', 4),
-        clothXml(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2, 'Tops', 1),
-        clothXml(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2, 'Bottoms', 1),
-        clothXml(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2, 'Shoes', 3),
-
-        clothXml(1021, 1, 'swf/hair', 'hair_5.swf', '0xff9900,0x663366', 1, 'Hair', 4),
-        clothXml(1011, 2, 'swf/tops', 'top_2_Honey.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1, 'Tops', 1),
-        clothXml(1052, 3, 'swf/bottoms', 'Honey_bottoms_8.swf', '0xff0066,0xfeffff', 1, 'Bottoms', 1),
-        clothXml(1028, 10, 'swf/footwear', 'shoes_2.swf', '0x6699cc,0x990000', 1, 'Shoes', 3)
-    ];
-
-    const filtered = all.filter((xml) => {
-        const itemSkin = Number((xml.match(/<SkinId>(\d+)<\/SkinId>/) || [0, 0])[1]);
-        const itemShop = Number((xml.match(/<ShopId>(\d+)<\/ShopId>/) || [0, 1])[1]);
-        return (itemSkin === 0 || itemSkin === skinId) && (shopId === 1 || itemShop === shopId);
-    }).join('');
-
-    log(`[SOAP LOAD CLOTHES] skinId=${skinId} shopId=${shopId} bytes=${Buffer.byteLength(filtered, 'utf8')}`);
-    return filtered;
-};
-
-const soapActorDetails2010Xml = (actorId = 1, name = 'admin', password = 'admin') => {
-    const hair = clothXml(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2, 'Hair', 4);
-    const top = clothXml(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2, 'Tops', 1);
-    const bottom = clothXml(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2, 'Bottoms', 1);
-    const shoes = clothXml(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2, 'Shoes', 3);
-    const rels = [
-        actorClothesRelXml(1, 1005, '0xcc0000,0xff6600,0xffff00', hair),
-        actorClothesRelXml(2, 1057, '0x666666', top),
-        actorClothesRelXml(3, 1002, '', bottom),
-        actorClothesRelXml(4, 1128, '0x6699cc,0x990000', shoes)
-    ].join('');
-    return soapNode('ActorId', actorId)
-        + soapNode('Name', name)
-        + soapNode('Level', 0)
-        + soapNode('SkinSWF', 'maleskin')
-        + soapNode('SkinColor', '16764057')
-        + soapNode('NoseId', 4)
-        + soapNode('EyeId', 2)
-        + soapNode('MouthId', 4)
-        + soapNode('Money', 25000)
-        + soapNode('EyeColors', '0x3a6eb5')
-        + soapNode('MouthColors', 'skincolor,0xb64254')
-        + soapNode('Fame', 0)
-        + soapNode('Fortune', 0)
-        + soapNode('FriendCount', 0)
-        + soapNode('Password', password)
-        + soapNode('ProfileText', '')
-        + soapNode('Created', new Date().toISOString())
-        + soapNode('LastLogin', new Date().toISOString())
-        + soapNode('Email', '')
-        + soapNode('Moderator', 0)
-        + soapNode('ProfileDisplays', 0)
-        + soapNode('FavoriteMovie', '')
-        + soapNode('FavoriteActor', '')
-        + soapNode('FavoriteActress', '')
-        + soapNode('FavoriteSinger', '')
-        + soapNode('FavoriteSong', '')
-        + soapNode('IsExtra', 0)
-        + soapNode('HasUnreadMessages', 0)
-        + soapNode('Wallpaper', 'wall0302.jpg')
-        + soapNode('Floor', 'n02-1.jpg')
-        + soapNode('InvitedByActorId', -1)
-        + soapNode('PollTaken', 0)
-        + soapNode('ValueOfGiftsReceived', 0)
-        + soapNode('ValueOfGiftsGiven', 0)
-        + soapNode('NumberOfGiftsGiven', 0)
-        + soapNode('NumberOfGiftsReceived', 0)
-        + soapNode('NumberOfAutographsReceived', 0)
-        + soapNode('NumberOfAutographsGiven', 0)
-        + soapNode('TimeOfLastAutographGiven', '1970-01-01T00:00:00')
-        + soapNode('FacebookId', '')
-        + soapNode('BoyfriendId', 0)
-        + soapNode('BoyfriendStatus', 0)
-        + soapNode('MembershipPurchasedDate', '1970-01-01T00:00:00')
-        + soapNode('MembershipTimeoutDate', '1970-01-01T00:00:00')
-        + soapNode('MembershipGiftRecievedDate', '1970-01-01T00:00:00')
-        + soapNode('BehaviourStatus', 0)
-        + soapNode('LockedUntil', '1970-01-01T00:00:00')
-        + soapNode('LockedText', '')
-        + soapNode('BadWordCount', 0)
-        + soapNode('PurchaseTimeoutDate', '1970-01-01T00:00:00')
-        + soapNode('EmailValidated', 0)
-        + soapNode('RetentionStatus', 0)
-        + soapNode('GiftStatus', 2)
-        + soapNode('MarketingNextStepLogins', 1)
-        + soapNode('MarketingStep', 1)
-        + soapNode('TotalVipDays', 0)
-        + soapNode('RecyclePoints', 0)
-        + soapNode('EmailSettings', 0)
-        + soapNode('RoomLikes', 0)
-        + soapNode('TimeOfLastAutographGivenStr', '1970-01-01T00:00:00')
-        + `<ActorClothesRels>${rels}</ActorClothesRels>`
-        + `<ActorAnimationRels />`
-        + `<ActorMusicRels />`
-        + `<ActorBackgroundRels />`
-        + `<BoyFriend />`
-        + `<RoomActorLikes />`
-        + `<Eye>${soapNode('EyeId', 2)}${soapNode('Name', 'Basic Boy')}${soapNode('SWF', 'male_eye1')}${soapNode('SkinId', 2)}</Eye>`
-        + `<Nose>${soapNode('NoseId', 4)}${soapNode('Name', 'Boy Nose')}${soapNode('SWF', 'nose_4')}${soapNode('SkinId', 2)}</Nose>`
-        + `<Mouth>${soapNode('MouthId', 4)}${soapNode('Name', 'Basic Boy')}${soapNode('SWF', 'male_mouth_1')}${soapNode('SkinId', 2)}</Mouth>`;
-};
-
-let lastSoapActorId = 1;
-let lastSoapActorName = 'admin';
-let lastSoapActorPassword = 'admin';
-const makeLocalTicket = (actorId = 1) => `local-${actorId}-${crypto.randomBytes(12).toString('hex')}`;
-
-const handleSoapCompatibilityRequest = async (req, res, serviceLabel = 'SOAP') => {
+const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
     const action = soapActionFrom(req);
     const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8').replace(/\s+/g, ' ').slice(0, 260) : '';
     log(`[${serviceLabel}] ${req.method} ${req.url} action=${action} body=${body}`);
@@ -1805,131 +1672,72 @@ const handleSoapCompatibilityRequest = async (req, res, serviceLabel = 'SOAP') =
         return;
     }
     if (/GetIPLoginType/i.test(action)) {
-        sendSoapResult(res, 'GetIPLoginType', '0');
+        sendSoapResult(res, 'GetIPLoginType', '<GetIPLoginTypeResult>0</GetIPLoginTypeResult>');
         return;
     }
     if (/getLoginHistory/i.test(action)) {
-        sendSoapResult(res, 'getLoginHistory', '');
-        return;
-    }
-    if (/LoadDataForRegisterNewUser/i.test(action)) {
-        const registerXml = soapRegisterNewUserDataXml();
-        sendSoapResult(res, 'LoadDataForRegisterNewUser', registerXml);
-        return;
-    }
-    if (/LoadClothes/i.test(action)) {
-        sendSoapResult(res, 'LoadClothes', soapLoadClothesXml(req));
-        return;
-    }
-    if (/GetActorCount/i.test(action)) {
-        sendSoapResult(res, 'GetActorCount', '1');
-        return;
-    }
-    if (/GetMovieCount/i.test(action)) {
-        sendSoapResult(res, 'GetMovieCount', '0');
-        return;
-    }
-    if (/IsActorNameUsed|IsNameUsed|NameUsed|ActorNameExists|UsernameExists|IsUsernameUsed/i.test(action)) {
-        const checkedName = extractSoapText(req, ['actorName', 'ActorName', 'name', 'Name', 'username', 'Username'], '');
-        const used = Boolean(findUserByName(checkedName));
-        log(`[SOAP NAME CHECK] ${action} name=${checkedName || '(empty)'} -> ${used ? 'true' : 'false'}`);
-        sendSoapResult(res, action, used ? 'true' : 'false');
-        return;
-    }
-    if (/IsActorNameValid|ValidateActorName|IsActorNameAllowed|IsNameValid|ValidateName/i.test(action)) {
-        const checkedName = extractSoapText(req, ['actorName', 'ActorName', 'name', 'Name', 'username', 'Username'], '');
-        log(`[SOAP NAME VALID] ${action} name=${checkedName || '(empty)'} -> true`);
-        sendSoapResult(res, action, 'true');
-        return;
-    }
-    if (/LoadActorWithCurrentClothesBasicDataOnly/i.test(action)) {
-        log('[SOAP ACTOR BASIC] MSPRetro-compatible actor');
-        sendSoapResult(res, 'LoadActorWithCurrentClothesBasicDataOnly', soapActorDetails2010Xml(1, 'admin', 'admin'));
-        return;
-    }
-    if (/CreateNewUserOld|CreateNewUser/i.test(action)) {
-        const username = extractSoapText(req, ['Name', 'ChosenActorName', 'username'], `player${Date.now()}`).slice(0, 20) || `player${Date.now()}`;
-        const password = extractSoapText(req, ['Password', 'ChosenPassword', 'password'], 'admin') || 'admin';
-        const account = await createSoapAccount(username, password);
-        const actorId = Number(account.actor.actorId) || 1;
-        const ticket = makeLocalTicket(actorId);
-        lastSoapActorId = actorId;
-        lastSoapActorName = account.actor.name || username || 'admin';
-        lastSoapActorPassword = password || 'admin';
-        log(`[SOAP CREATE USER FINAL] username=${lastSoapActorName} actorId=${actorId} saved=${account.created ? 'yes' : 'exists'}`);
-        sendSoapResult(res, action, soapActorDetails2010Xml(actorId, lastSoapActorName, password), ticket);
-        return;
-    }
-    if (/SaveEntitySnapshot/i.test(action)) {
-        log('[SOAP SAVE SNAPSHOT] ok');
-        sendSoapResult(res, action, 'true');
-        return;
-    }
-    if (/getNowAsString|GetNowAsString/i.test(action)) {
-        const now = new Date().toISOString();
-        log(`[SOAP NOW] ${now}`);
-        sendSoapResult(res, action, now);
-        return;
-    }
-    if (/LoadActorDetails|LoadActorDetails2|LoadActorDetailsSecure|LoadActor/i.test(action)) {
-        log(`[SOAP LOAD ACTOR DETAILS] ${lastSoapActorName} actorId=${lastSoapActorId}`);
-        sendSoapResult(res, action, soapActorDetails2010Xml(lastSoapActorId || 1, lastSoapActorName, lastSoapActorPassword), makeLocalTicket(lastSoapActorId || 1));
-        return;
-    }
-    if (/GetServerTime|GetTime|ServerTime/i.test(action)) {
-        const safeTimeAction = /^[A-Za-z_][A-Za-z0-9_]*$/.test(action) && action !== 'Unknown' ? action : 'GetServerTime';
-        sendSoapResult(res, safeTimeAction, new Date().toISOString());
-        return;
-    }
-    if (/Login2/i.test(action)) {
-        const ticket = makeLocalTicket(1);
-        sendSoapResult(res, 'Login2', `<loginStatus><status>Success</status><actor>${soapActorDetails2010Xml(1, 'admin', 'admin')}</actor></loginStatus>`, ticket);
-        return;
-    }
-    if (/Login/i.test(action)) {
-        const username = extractSoapText(req, ['username', 'Name'], lastSoapActorName || 'admin') || lastSoapActorName || 'admin';
-        const user = findUserByName(username);
-        const actorId = user ? Number(user.actorId) || 1 : (lastSoapActorId || 1);
-        lastSoapActorId = actorId;
-        lastSoapActorName = username;
-        const ticket = makeLocalTicket(actorId);
-        log(`[SOAP LOGIN MSPRETRO] username=${username} actorId=${actorId}`);
-        sendSoapResult(res, 'Login', `<status>Success</status><actor>${soapActorDetails2010Xml(actorId, username, 'admin')}</actor><blockedIpAsInt>0</blockedIpAsInt><actorLocale><string>en_US</string></actorLocale>`, ticket);
+        sendSoapResult(res, 'getLoginHistory', '<getLoginHistoryResult />');
         return;
     }
 
-    if (/GetActorBoonies|LoadActorBoonies|LoadPets|GetPets/i.test(action)) {
-        sendSoapResult(res, action, '');
+    if (/LoadDataForRegisterNewUser/i.test(action)) {
+        const registerXml = soapRegisterNewUserDataXml();
+        log(`[SOAP REGISTER] responseBytes=${Buffer.byteLength(registerXml, 'utf8')}`);
+        sendSoapResult(res, 'LoadDataForRegisterNewUser', registerXml);
         return;
     }
-    if (/LoadMessages|LoadFriends|LoadRooms|LoadMovies|LoadAnimations|LoadBackgrounds|LoadMusic|LoadArtbooks|LoadLooks/i.test(action)) {
-        sendSoapResult(res, action, '');
+    if (/GetActorCount/i.test(action)) {
+        const usersList = Array.isArray(db.users) ? db.users : Object.values(db.users || {});
+        const actorsList = Array.isArray(db.actors) ? db.actors : Object.values(db.actors || {});
+        const count = usersList.length || actorsList.length || 0;
+        log(`[SOAP COUNT] GetActorCount -> ${count}`);
+        sendSoapResult(res, 'GetActorCount', `<GetActorCountResult>${count}</GetActorCountResult>`);
+        return;
+    }
+    if (/GetMovieCount/i.test(action)) {
+        const moviesList = Array.isArray(db.movies) ? db.movies : Object.values(db.movies || {});
+        const count = moviesList.length || 0;
+        log(`[SOAP COUNT] GetMovieCount -> ${count}`);
+        sendSoapResult(res, 'GetMovieCount', `<GetMovieCountResult>${count}</GetMovieCountResult>`);
+        return;
+    }
+    if (/LoadActorWithCurrentClothesBasicDataOnly/i.test(action)) {
+        const actorsList = Array.isArray(db.actors) ? db.actors : Object.values(db.actors || {});
+        const usersList = Array.isArray(db.users) ? db.users : Object.values(db.users || {});
+        const frontActors = (actorsList.length ? actorsList : usersList)
+            .slice(-6)
+            .reverse()
+            .map((actor) => devActorDetails(actor, true));
+        const resultActors = frontActors.length ? frontActors : [devActorDetails(null, true)];
+        log(`[SOAP FRONTPAGE ACTORS] count=${resultActors.length}`);
+        sendSoapResult(res, 'LoadActorWithCurrentClothesBasicDataOnly', soapXmlNode('LoadActorWithCurrentClothesBasicDataOnlyResult', resultActors));
+        return;
+    }
+
+    if (/GetServerTime|GetTime|ServerTime/i.test(action)) {
+        const safeTimeAction = /^[A-Za-z_][A-Za-z0-9_]*$/.test(action) && action !== 'Unknown' ? action : 'GetServerTime';
+        sendSoapResult(res, safeTimeAction, `<${safeTimeAction}Result>${xmlEscape(new Date().toISOString())}</${safeTimeAction}Result>`);
+        return;
+    }
+    if (/Login2/i.test(action)) {
+        sendSoapResult(res, 'Login2', '<Login2Result><loginStatus><status>Success</status></loginStatus></Login2Result>');
+        return;
+    }
+    if (/Login/i.test(action)) {
+        sendSoapResult(res, 'Login', '<LoginResult><status>Success</status></LoginResult>');
         return;
     }
 
     const safeAction = /^[A-Za-z_][A-Za-z0-9_]*$/.test(action) && action !== 'Unknown' ? action : 'GetIPLoginType';
-    if (/IsActorNameUsed|IsNameUsed|NameUsed|ActorNameExists|UsernameExists|IsUsernameUsed/i.test(safeAction)) {
-        log(`[SOAP FALLBACK NAME FALSE] action=${safeAction}`);
-        sendSoapResult(res, safeAction, 'false');
-        return;
-    }
-    log(`[SOAP FALLBACK TRUE] action=${safeAction}`);
-    sendSoapResult(res, safeAction, 'true');
+    sendSoapResult(res, safeAction, `<${safeAction}Result>false</${safeAction}Result>`);
 };
 
-app.all(/^\/+WebService\/+Service\.asmx\/?$/i, async (req, res) => {
+app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
     if (req.method === 'GET' || /wsdl/i.test(req.url)) {
         res.type('text/xml').send(serviceWsdl);
         return;
     }
-    try {
-        await handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
-    } catch (err) {
-        log(`[SOAP SERVICE ERROR] ${err.stack || err.message}`);
-        if (!res.headersSent) {
-            sendSoapResult(res, 'Error', 'false');
-        }
-    }
+    handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
 });
 
 app.all(/^\/+WebService\/User\/UserService\.asmx$/i, (req, res) => {
@@ -1947,24 +1755,24 @@ app.all(/^\/+WebService\/User\/UserService\.asmx$/i, (req, res) => {
         return;
     }
     if (/GetIPLoginType/i.test(action)) {
-        sendSoapResult(res, 'GetIPLoginType', '0');
+        sendSoapResult(res, 'GetIPLoginType', '<GetIPLoginTypeResult>0</GetIPLoginTypeResult>');
         return;
     }
     if (/getLoginHistory/i.test(action)) {
-        sendSoapResult(res, 'getLoginHistory', '');
+        sendSoapResult(res, 'getLoginHistory', '<getLoginHistoryResult />');
         return;
     }
     if (/Login2/i.test(action)) {
-        sendSoapResult(res, 'Login2', `<loginStatus><status>Success</status><actor>${soapActorDetails2010Xml(1, 'admin', 'admin')}</actor></loginStatus>`, makeLocalTicket(1));
+        sendSoapResult(res, 'Login2', '<Login2Result><loginStatus><status>Success</status></loginStatus></Login2Result>');
         return;
     }
     if (/Login/i.test(action)) {
-        sendSoapResult(res, 'Login', `<status>Success</status><actor>${soapActorDetails2010Xml(1, 'admin', 'admin')}</actor><blockedIpAsInt>0</blockedIpAsInt><actorLocale><string>en_US</string></actorLocale>`, makeLocalTicket(1));
+        sendSoapResult(res, 'Login', '<LoginResult><status>Success</status></LoginResult>');
         return;
     }
 
     const safeAction = /^[A-Za-z_][A-Za-z0-9_]*$/.test(action) && action !== 'Unknown' ? action : 'GetIPLoginType';
-    sendSoapResult(res, safeAction, 'false');
+    sendSoapResult(res, safeAction, `<${safeAction}Result>false</${safeAction}Result>`);
 });
 
 app.use(express.static(publicPath));
@@ -2383,7 +2191,7 @@ const starterClothes = () => [
     cloth(1021, 'swf/hair', 'hair_5.swf', 1, 'Female', '0xff9900,0x663366'),
     cloth(1020, 'swf/hair', 'hair_4.swf', 1, 'Female'),
     cloth(1005, 'swf/hair', 'hair_3.swf', 1, 'Male', '0xcc0000,0xff6600,0xffff00'),
-    cloth(1011, 'swf/tops', 'top_2_Honey.swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
+    cloth(1011, 'swf/tops', 't-shirt_2.swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
     cloth(1057, 'swf/tops', 'body armor top.swf', 2, 'Male', '0x666666'),
     cloth(1055, 'swf/tops', 'camoflage jacket.swf', 2, 'Male', '0x003300'),
     cloth(1036, 'swf/tops', 'top_2_Honey.swf', 2, 'Female', '0x666666,0xFF00CC'),
@@ -2751,7 +2559,7 @@ const makeLoginStatus = (className, postLoginSeq = postLoginSequence(), actorRec
     adCountryMap: [],
     postLoginSeq,
     previousLastLogin: '',
-    version: '2010123_95850',
+    version: '20161102_160430',
     userIp: 2130706433,
     ticket: 'local-admin-ticket',
     piggyBank: null,
@@ -2857,20 +2665,20 @@ const appSettingDefaults = {
     ExternalAppLinksLevelRequired: '999',
     MessageServiceELB: 'false',
     SendMessagesToCassandraDatabase: 'false',
-    XmppConferenceServerUrl: '127.0.0.1',
+    XmppConferenceServerUrl: '',
     UseOldMessagesList: 'true',
     usejsonc: 'false',
     SchoolFriendsSwitchEnabled: 'false',
     MySchoolFirstNameEnabled: 'false',
     EcoSystemUrl: '',
     EcosystemUrl: '',
-    XmppServerUrl: '127.0.0.1',
+    XmppServerUrl: '',
     XMPPFeatureState: 'false',
     specialinputtextchars: '',
     AllowedNonFriendCommunication: 'true',
     showoffercountdown: 'false',
     youtubeapikey: '',
-    MessageServerUrl: 'http://127.0.0.1/',
+    MessageServerUrl: '',
     vipsale: 'false',
     DeviceFingerprintCollectionEnabled: 'false',
     MangroveAnalyticsSwitch: 'false',
@@ -2905,9 +2713,9 @@ const appSettingDefaults = {
     UseUserBehaviorService: 'false',
     UseUserNameFiltering: 'false',
     UserBehaviorServiceHostName: '',
-    chatFMSServer: '127.0.0.1',
-    chatGameFMSServer: '127.0.0.1',
-    CommFMSServer: '127.0.0.1',
+    chatFMSServer: '',
+    chatGameFMSServer: '',
+    CommFMSServer: '',
     BlobServiceHostName: '',
     PurchaseFlow: 'local',
     ShowSIDLogo: 'true',
@@ -2916,27 +2724,10 @@ const appSettingDefaults = {
     MalesMustWearTops: 'false',
     ChristmasStartDate: '',
     arcadegamesurl: '',
-    testFMSServer: '127.0.0.1',
-    FmsServer: '127.0.0.1',
-    fmsServer: '127.0.0.1',
-    ChatServer: '127.0.0.1',
-    chatServer: '127.0.0.1'
+    testFMSServer: ''
 };
 
-const appSettingValue = (name) => {
-    const wanted = String(name || '');
-    if (/fms|chatserver|commfm|helloserver|xmpp|message/i.test(wanted)) {
-        if (/message/i.test(wanted)) return 'http://127.0.0.1/';
-        if (/xmppuse/i.test(wanted)) return 'true';
-        if (/feature/i.test(wanted)) return 'false';
-        return '127.0.0.1';
-    }
-    if (Object.prototype.hasOwnProperty.call(appSettingDefaults, wanted)) {
-        return appSettingDefaults[wanted];
-    }
-    const foundKey = Object.keys(appSettingDefaults).find((key) => key.toLowerCase() === wanted.toLowerCase());
-    return foundKey ? appSettingDefaults[foundKey] : '';
-};
+const appSettingValue = (name) => Object.prototype.hasOwnProperty.call(appSettingDefaults, name) ? appSettingDefaults[name] : '';
 const appSetting = (name) => typed(APP_SETTING_ALIAS, {
     name,
     value: String(appSettingValue(name))
@@ -3091,17 +2882,26 @@ const ensureDbShape = (state) => {
 };
 
 const loadJsonDb = () => {
-    if (dbSource !== 'remote') {
-        dbSource = 'memory';
+    try {
+        if (fs.existsSync(dbPath)) {
+            const existing = ensureDbShape(JSON.parse(fs.readFileSync(dbPath, 'utf8')));
+            if (!Array.isArray(existing.catalog.clothes) || existing.catalog.clothes.length === 0) {
+                fs.writeFileSync(dbPath, JSON.stringify(existing, null, 2));
+            }
+            return existing;
+        }
+    } catch (err) {
+        log(`[DB] Nie udalo sie wczytac bazy, tworze nowa: ${err.message}`);
     }
     const created = defaultDb();
-    log(`[DB] Tryb pamieci RAM: nie tworze msp-db.json (${created.catalog.clothes.length} ubran)`);
+    fs.writeFileSync(dbPath, JSON.stringify(created, null, 2));
+    log(`[DB] Utworzono lokalna baze: ${dbPath} (${created.catalog.clothes.length} ubran)`);
     return created;
 };
 
 const loadMongoDb = async () => {
     if (!mongoUri) {
-        log('[DB] MONGODB_URI nie ustawione, uzywam pamieci RAM');
+        log('[DB] MONGODB_URI nie ustawione, uzywam msp-db.json');
         return null;
     }
 
@@ -3128,7 +2928,7 @@ const loadMongoDb = async () => {
         return state;
     } catch (err) {
         dbSource = 'json';
-        log(`[DB] MongoDB niedostepne (${err.message}), uzywam pamieci RAM`);
+        log(`[DB] MongoDB niedostepne (${err.message}), uzywam msp-db.json`);
         if (mongoClient) {
             await mongoClient.close().catch(() => {});
         }
@@ -3140,13 +2940,15 @@ const loadMongoDb = async () => {
 
 const loadDb = async () => {
     if (useRemoteGateway) {
+        dbSource = 'remote';
         log(`[DB] Uzywam zdalnej bramy: ${remoteGatewayUrl}`);
         const mongoState = await loadMongoDb();
         if (mongoState) {
-            log(`[DB] Zdalna brama aktywna, ale konta zapisuje do MongoDB: ${mongoDbName}.${mongoStateCollection}`);
+            dbSource = 'remote';
+            log(`[DB] Render wlaczony, konta/state czytam i zapisuje w MongoDB: ${mongoDbName}.${mongoStateCollection}`);
             return mongoState;
         }
-        dbSource = 'remote-memory';
+        log('[DB] Render wlaczony, ale MongoDB nie dziala lokalnie/na serwerze, przechodze na RAM');
         return loadJsonDb();
     }
     const mongoState = await loadMongoDb();
@@ -3166,84 +2968,7 @@ const saveDb = async () => {
         );
         return;
     }
-    // Brak MongoDB = tylko RAM. Nic nie zapisuje do msp-db.json.
-};
-
-const persistAccountDocuments = async (user, actor) => {
-    if (!mongoClient || !mongoDatabase || !user || !actor) return false;
-    await mongoDatabase.collection('users').updateOne(
-        { usernameLower: String(user.username || '').toLowerCase() },
-        { $set: { ...user, usernameLower: String(user.username || '').toLowerCase() } },
-        { upsert: true }
-    );
-    await mongoDatabase.collection('actors').updateOne(
-        { actorId: Number(actor.actorId) },
-        { $set: actor },
-        { upsert: true }
-    );
-    return true;
-};
-
-const createSoapAccount = async (username, password) => {
-    const cleanUsername = String(username || '').trim().slice(0, 20) || `player${Date.now()}`;
-    const cleanPassword = String(password || 'admin');
-
-    let existing = findUserByName(cleanUsername);
-    if (existing) {
-        const existingActor = findActorById(existing.actorId) || null;
-        log(`[SOAP ACCOUNT EXISTS] username=${cleanUsername} actorId=${existing.actorId}`);
-        return {
-            user: existing,
-            actor: existingActor || {
-                actorId: existing.actorId,
-                name: cleanUsername,
-                level: 1,
-                money: 25000,
-                diamonds: 0,
-                fame: 0,
-                fortune: 0,
-                createdAt: new Date().toISOString()
-            },
-            created: false
-        };
-    }
-
-    const actorId = nextActorId();
-    const now = new Date().toISOString();
-    const actor = {
-        actorId,
-        name: cleanUsername,
-        level: 1,
-        money: 25000,
-        diamonds: 0,
-        fame: 0,
-        fortune: 0,
-        skinSWF: 'swf/skins/maleskin.swf',
-        skinColor: '16764057',
-        eyeId: 2,
-        noseId: 4,
-        mouthId: 4,
-        createdAt: now,
-        lastLogin: now
-    };
-    const user = {
-        id: actorId,
-        username: cleanUsername,
-        passwordHash: hashPassword(cleanPassword),
-        actorId,
-        role: 'player',
-        createdAt: now
-    };
-
-    db = ensureDbShape(db);
-    db.users.push(user);
-    db.actors.push(actor);
-    db.inventory[String(actorId)] = starterClothes().slice(0, 6);
-    await saveDb();
-    await persistAccountDocuments(user, actor);
-
-    log(`[SOAP ACCOUNT SAVED] username=${cleanUsername} actorId=${actorId} source=${mongoClient && mongoDatabase ? 'mongodb' : 'ram'}`);
-    return { user, actor, created: true };
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
 };
 
 const isDevCredentials = (requestBody) => {
@@ -3530,7 +3255,7 @@ const getAmfResultForMethod = async (method, args = []) => {
     }
     if (method.endsWith('GetLatestServerException')) {
         return {
-            Version: '2010123_95850',
+            Version: '20161102_160430',
             Exception: ''
         };
     }
@@ -3720,7 +3445,8 @@ app.get('/getConfig', (req, res) => {
 app.get('/api/db/status', (req, res) => {
     res.json({
         source: dbSource,
-        mongoConnected: useRemoteGateway || Boolean(mongoClient && mongoDatabase),
+        build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : 'unknown',
+        mongoConnected: Boolean(mongoClient && mongoDatabase),
         remoteGateway: useRemoteGateway ? remoteGatewayUrl : '',
         mongoDbName,
         mongoStateCollection,
@@ -3734,7 +3460,8 @@ app.get('/api/health', (req, res) => {
         ok: true,
         mode: configuredPort ? 'render' : (isServerOnly ? 'server' : 'local'),
         source: dbSource,
-        mongoConnected: useRemoteGateway || Boolean(mongoClient && mongoDatabase),
+        build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : 'unknown',
+        mongoConnected: Boolean(mongoClient && mongoDatabase),
         remoteGateway: useRemoteGateway ? remoteGatewayUrl : '',
         realMspProxy: realMspProxyEnabled,
         realMspServer,
