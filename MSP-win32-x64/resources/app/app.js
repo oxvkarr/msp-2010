@@ -2126,7 +2126,71 @@ const previewValue = (value, limit = 900) => {
     });
     return text && text.length > limit ? `${text.slice(0, limit)}...` : text;
 };
+function isBadValue(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  return !s || s === "null" || s === "undefined" || s === "nan" || s === "none";
+}
 
+function cleanSwfName(v, fallback) {
+  if (isBadValue(v)) return fallback;
+  let s = String(v).trim();
+  s = s.replace(/^.*\//, "");
+  s = s.replace(/\.swf$/i, "");
+  return isBadValue(s) ? fallback : s;
+}
+
+function fixActorNulls(actor) {
+  actor = actor || {};
+
+  let gender = actor.gender || actor.Gender || "Boy";
+  const g = String(gender).toLowerCase();
+
+  if (g.includes("girl") || g.includes("female") || g === "f" || g === "1") {
+    gender = "Girl";
+  } else {
+    gender = "Boy";
+  }
+
+  const defaultSkin = gender === "Girl" ? "femaleskin" : "maleskin";
+  const defaultEye = gender === "Girl" ? "eyes_1" : "male_eye1";
+  const defaultNose = gender === "Girl" ? "nose_6" : "nose_4";
+  const defaultMouth = gender === "Girl" ? "female_mouth_1" : "male_mouth_1";
+
+  actor.gender = gender;
+  actor.Gender = gender;
+
+  actor.skin = cleanSwfName(actor.skin || actor.Skin || actor.skinSwf || actor.SkinSWF, defaultSkin);
+  actor.Skin = actor.skin;
+
+  actor.eye = cleanSwfName(actor.eye || actor.Eye || actor.eyeSwf || actor.EyeSWF, defaultEye);
+  actor.Eye = actor.eye;
+
+  actor.nose = cleanSwfName(actor.nose || actor.Nose || actor.noseSwf || actor.NoseSWF, defaultNose);
+  actor.Nose = actor.nose;
+
+  actor.mouth = cleanSwfName(actor.mouth || actor.Mouth || actor.mouthSwf || actor.MouthSWF, defaultMouth);
+  actor.Mouth = actor.mouth;
+
+  if (!Array.isArray(actor.clothes) || actor.clothes.length === 0) {
+    actor.clothes = gender === "Girl"
+      ? [
+          { type: "hair", filename: "hair_5.swf", url: "/swf/hair/hair_5.swf" },
+          { type: "top", filename: "top_2_Honey.swf", url: "/swf/tops/top_2_Honey.swf" },
+          { type: "bottom", filename: "Honey_bottoms_8.swf", url: "/swf/bottoms/Honey_bottoms_8.swf" },
+          { type: "footwear", filename: "shoes_2.swf", url: "/swf/footwear/shoes_2.swf" }
+        ]
+      : [
+          { type: "hair", filename: "hair_3.swf", url: "/swf/hair/hair_3.swf" },
+          { type: "top", filename: "body armor top.swf", url: "/swf/tops/body%20armor%20top.swf" },
+          { type: "bottom", filename: "long trousers_1.swf", url: "/swf/bottoms/long%20trousers_1.swf" },
+          { type: "footwear", filename: "shoes_1.swf", url: "/swf/footwear/shoes_1.swf" }
+        ];
+  }
+
+  actor.Clothes = actor.clothes;
+
+  return actor;
+}
 const buildAmfResponse = (version, responseUri, value, options = {}) => {
     let body;
     let usedAmfjs = !options.legacy;
