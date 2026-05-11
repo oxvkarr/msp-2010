@@ -9,7 +9,6 @@ const amfjs = require('amfjs');
 const { MongoClient } = require('mongodb');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
-const APP_BUILD = '2010-render-mongo-hybrid-v15';
 
 const publicPath = path.join(__dirname, 'public');
 const assetCachePath = path.join(__dirname, 'asset-cache');
@@ -18,22 +17,27 @@ const dbPath = path.join(__dirname, 'msp-db.json');
 const debugLogPath = path.join(__dirname, 'msp-debug.log');
 const serverPidPath = path.join(__dirname, 'msp-server.pid');
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
-const mongoDbName = process.env.MONGODB_DB || 'msp_2010';
+const mongoDbName = process.env.MONGODB_DB || 'msp_2016';
 const mongoStateCollection = process.env.MONGODB_STATE_COLLECTION || 'state';
 const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev';
 const officialMspAssetBaseUrl = (process.env.MSPCDN_ASSET_BASE_URL || 'https://assets.mspcdns.com/msp/103.1.40').replace(/\/+$/, '');
 const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
-const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
+const defaultRemoteGatewayUrl = 'https://msp-2016.onrender.com';
+const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
 const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE !== '0';
-const remoteGatewayUrl = (process.env.REMOTE_GATEWAY || process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
+const remoteGatewayUrl = (process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
 const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 15000);
 const realMspProxyEnabled = process.env.REAL_MSP_PROXY === '1';
 const realMspServer = (process.env.REAL_MSP_SERVER || 'pl').toLowerCase() === 'uk' ? 'gb' : (process.env.REAL_MSP_SERVER || 'pl').toLowerCase();
 const realMspGatewayUrl = `https://ws-${realMspServer}.mspapis.com/Gateway.aspx`;
 const isDebugMode = process.env.MSP_DEBUG === '1';
 const isServerOnly = process.env.MSP_SERVER_ONLY === '1' || process.argv.includes('--server');
-const useRemoteGateway = (process.env.USE_REMOTE_GATEWAY === '1') && Boolean(remoteGatewayUrl);
+const remoteGatewayExplicitEnabled =
+    process.env.USE_REMOTE_GATEWAY === '1' ||
+    process.env.REMOTE_GATEWAY_AMF === '1' ||
+    process.env.REMOTE_GATEWAY_ALL === '1';
+const useRemoteGateway = Boolean(remoteGatewayUrl) && !isServerOnly && remoteGatewayExplicitEnabled;
 const isCreateNewUserMethod = (method) => /MovieStarPlanet\.WebService\.User\.(AMFUserServiceWeb|AMFUserService)\.(CreateNewUser|CreateNewUserOld)$/i.test(method || '');
 // Dodajemy nową linię dla logowania:
 const isLoginMethod = (method) => /MovieStarPlanet\.WebService\.User\.(AMFUserServiceWeb|AMFUserService)\.Login$/i.test(method || '');
@@ -987,6 +991,94 @@ const proxyGatewayRequest = (req, res, method, fallbackHandler) => {
     return true;
 };
 
+// DODANE v19: proxy nie tylko /Gateway.aspx, ale tez SOAP /WebService/Service.asmx do Rendera.
+// Nic lokalnego nie usuwamy: jesli Render padnie albo zwroci 5xx, wracamy do starego lokalnego handlera.
+const proxyRemotePathRequest = (req, res, remotePath, label, fallbackHandler) => {
+    if (!remoteGatewayUrl) return false;
+
+    const targetUrl = new URL(`${remoteGatewayUrl}${remotePath}`);
+    const originalUrl = req.originalUrl || req.url || '';
+    const qIndex = originalUrl.indexOf('?');
+    if (qIndex !== -1) {
+        targetUrl.search = originalUrl.slice(qIndex);
+    }
+
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const client = targetUrl.protocol === 'https:' ? https : http;
+    let settled = false;
+
+    const fallback = (reason) => {
+        if (settled || res.headersSent) return;
+        settled = true;
+        log(`[REMOTE ${label} FALLBACK] ${reason || ''}`);
+        if (typeof fallbackHandler === 'function') {
+            try {
+                const maybePromise = fallbackHandler(reason);
+                if (maybePromise && typeof maybePromise.catch === 'function') {
+                    maybePromise.catch((err) => {
+                        log(`[REMOTE ${label} FALLBACK FAIL] ${err.stack || err.message}`);
+                        if (!res.headersSent) res.status(502).type('text/plain').send(`Remote ${label} unavailable`);
+                    });
+                }
+            } catch (err) {
+                log(`[REMOTE ${label} FALLBACK FAIL] ${err.stack || err.message}`);
+                if (!res.headersSent) res.status(502).type('text/plain').send(`Remote ${label} unavailable`);
+            }
+            return;
+        }
+        res.status(502).type('text/plain').send(`Remote ${label} unavailable`);
+    };
+
+    const headers = Object.assign({}, req.headers, {
+        host: targetUrl.host,
+        'content-length': body.length
+    });
+
+    delete headers.connection;
+    delete headers['accept-encoding'];
+
+    const proxyReq = client.request(targetUrl, {
+        method: req.method,
+        headers,
+        timeout: remoteGatewayTimeoutMs
+    }, (proxyRes) => {
+        const chunks = [];
+        proxyRes.on('data', (chunk) => chunks.push(chunk));
+        proxyRes.on('end', () => {
+            if (settled || res.headersSent) return;
+            const responseBody = Buffer.concat(chunks);
+            const statusCode = proxyRes.statusCode || 502;
+
+            if (statusCode >= 500) {
+                log(`[REMOTE ${label} BAD STATUS] ${targetUrl.toString()} status=${statusCode} bytes=${responseBody.length}`);
+                fallback(`remote status ${statusCode}`);
+                return;
+            }
+
+            settled = true;
+            log(`[REMOTE ${label} OK] ${targetUrl.toString()} status=${statusCode} bytes=${responseBody.length}`);
+            res.status(statusCode);
+            Object.entries(proxyRes.headers || {}).forEach(([key, value]) => {
+                if (value !== undefined && key.toLowerCase() !== 'transfer-encoding') res.setHeader(key, value);
+            });
+            res.send(responseBody);
+        });
+    });
+
+    proxyReq.on('error', (err) => {
+        log(`[REMOTE ${label} FAIL] ${targetUrl.toString()} ${err.message}`);
+        fallback(err.message);
+    });
+    proxyReq.on('timeout', () => {
+        proxyReq.destroy(new Error(`Remote ${label} timeout`));
+    });
+
+    proxyReq.end(body);
+    log(`[REMOTE ${label}] ${req.method} ${req.url} -> ${targetUrl.toString()}`);
+    return true;
+};
+
+
 const proxyRealMspApiRequest = (req, res, method, fallbackHandler) => {
     if (!realMspProxyEnabled) return false;
 
@@ -1687,30 +1779,15 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
         return;
     }
     if (/GetActorCount/i.test(action)) {
-        const usersList = Array.isArray(db.users) ? db.users : Object.values(db.users || {});
-        const actorsList = Array.isArray(db.actors) ? db.actors : Object.values(db.actors || {});
-        const count = usersList.length || actorsList.length || 0;
-        log(`[SOAP COUNT] GetActorCount -> ${count}`);
-        sendSoapResult(res, 'GetActorCount', `<GetActorCountResult>${count}</GetActorCountResult>`);
+        sendSoapResult(res, 'GetActorCount', '<GetActorCountResult>0</GetActorCountResult>');
         return;
     }
     if (/GetMovieCount/i.test(action)) {
-        const moviesList = Array.isArray(db.movies) ? db.movies : Object.values(db.movies || {});
-        const count = moviesList.length || 0;
-        log(`[SOAP COUNT] GetMovieCount -> ${count}`);
-        sendSoapResult(res, 'GetMovieCount', `<GetMovieCountResult>${count}</GetMovieCountResult>`);
+        sendSoapResult(res, 'GetMovieCount', '<GetMovieCountResult>0</GetMovieCountResult>');
         return;
     }
     if (/LoadActorWithCurrentClothesBasicDataOnly/i.test(action)) {
-        const actorsList = Array.isArray(db.actors) ? db.actors : Object.values(db.actors || {});
-        const usersList = Array.isArray(db.users) ? db.users : Object.values(db.users || {});
-        const frontActors = (actorsList.length ? actorsList : usersList)
-            .slice(-6)
-            .reverse()
-            .map((actor) => devActorDetails(actor, true));
-        const resultActors = frontActors.length ? frontActors : [devActorDetails(null, true)];
-        log(`[SOAP FRONTPAGE ACTORS] count=${resultActors.length}`);
-        sendSoapResult(res, 'LoadActorWithCurrentClothesBasicDataOnly', soapXmlNode('LoadActorWithCurrentClothesBasicDataOnlyResult', resultActors));
+        sendSoapResult(res, 'LoadActorWithCurrentClothesBasicDataOnly', soapXmlNode('LoadActorWithCurrentClothesBasicDataOnlyResult', devActorDetails(null, true)));
         return;
     }
 
@@ -1737,6 +1814,15 @@ app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
         res.type('text/xml').send(serviceWsdl);
         return;
     }
+
+    // DODANE v19: klient lokalny przekazuje SOAP do Rendera.
+    // To wlasnie tu ida Login, CreateNewUser, LoadActorDetails i rejestracja 2010.
+    if (useRemoteGateway && proxyRemotePathRequest(req, res, '/WebService/Service.asmx', 'SOAP', () => {
+        handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
+    })) {
+        return;
+    }
+
     handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
 });
 
@@ -2942,13 +3028,6 @@ const loadDb = async () => {
     if (useRemoteGateway) {
         dbSource = 'remote';
         log(`[DB] Uzywam zdalnej bramy: ${remoteGatewayUrl}`);
-        const mongoState = await loadMongoDb();
-        if (mongoState) {
-            dbSource = 'remote';
-            log(`[DB] Render wlaczony, konta/state czytam i zapisuje w MongoDB: ${mongoDbName}.${mongoStateCollection}`);
-            return mongoState;
-        }
-        log('[DB] Render wlaczony, ale MongoDB nie dziala lokalnie/na serwerze, przechodze na RAM');
         return loadJsonDb();
     }
     const mongoState = await loadMongoDb();
@@ -3419,6 +3498,15 @@ app.all('/Gateway.aspx', async (req, res) => {
     if (proxyRealMspApiRequest(req, res, method, (reason) => handleLocalGatewayRequest(req, res, reason))) {
         return;
     }
+
+    // DODANE: tryb klient -> Render. Niczego lokalnego nie usuwamy.
+    // v19: SOAP /WebService/Service.asmx tez jest proxy do Rendera, nie tylko /Gateway.aspx.
+    // Gdy USE_REMOTE_GATEWAY=1, wszystkie AMF /Gateway.aspx ida do Rendera.
+    // Jesli Render padnie, app.js wraca do starego lokalnego handlera, wiec dev panel nie znika.
+    if (useRemoteGateway && proxyGatewayRequest(req, res, method, (reason) => handleLocalGatewayRequest(req, res, reason))) {
+        return;
+    }
+
     if (shouldProxyRemoteGateway(method) && proxyGatewayRequest(req, res, method, (reason) => handleLocalGatewayRequest(req, res, reason))) {
         return;
     }
@@ -3444,9 +3532,11 @@ app.get('/getConfig', (req, res) => {
 
 app.get('/api/db/status', (req, res) => {
     res.json({
+        build: typeof BUILD !== 'undefined' ? BUILD : null,
         source: dbSource,
-        build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : 'unknown',
-        mongoConnected: Boolean(mongoClient && mongoDatabase),
+        mongoConnected: useRemoteGateway || Boolean(mongoClient && mongoDatabase),
+        remoteGatewayEnabled: useRemoteGateway,
+        remoteGatewayExplicitEnabled,
         remoteGateway: useRemoteGateway ? remoteGatewayUrl : '',
         mongoDbName,
         mongoStateCollection,
@@ -3460,8 +3550,7 @@ app.get('/api/health', (req, res) => {
         ok: true,
         mode: configuredPort ? 'render' : (isServerOnly ? 'server' : 'local'),
         source: dbSource,
-        build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : 'unknown',
-        mongoConnected: Boolean(mongoClient && mongoDatabase),
+        mongoConnected: useRemoteGateway || Boolean(mongoClient && mongoDatabase),
         remoteGateway: useRemoteGateway ? remoteGatewayUrl : '',
         realMspProxy: realMspProxyEnabled,
         realMspServer,
