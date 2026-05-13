@@ -1702,21 +1702,46 @@ const soapRegisterNewUserDataXml = () => {
         + node('y', 0)
         + `</ActorClothesRel>`;
 
-    const eye = face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2);
+    const eyeMale = face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2);
+    const eyeFemale = face('Eye', 'EyeId', 1, 'eyes_girlnextdoor_2013/texture', '0x5b351c', 1);
+    const eyeAll = eyeFemale + eyeMale;
     const nose = face('Nose', 'NoseId', 4, 'nose_3', '', 2);
+    const noseFemale = face('Nose', 'NoseId', 1, 'nose_1', '', 1);
+    const noseAll = noseFemale + nose;
     const mouth = face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2);
+    const mouthFemale = face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1);
+    const mouthAll = mouthFemale + mouth;
     const eyeShadow = face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 3);
-    const hair = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
-    const top = cloth(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2);
-    const bottom = cloth(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2);
-    const shoes = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
-    const rels = [
+    const eyeShadow2 = face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 3);
+
+    // Ubrania meskie
+    const hairMale = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
+    const topMale = cloth(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2);
+    const bottomMale = cloth(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2);
+    const shoesMale = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
+    const relsMale = [
         rel(1005, '0xcc0000,0xff6600,0xffff00'),
         rel(1057, '0x666666'),
         rel(1002, ''),
         rel(1128, '0x6699cc,0x990000')
     ].join('');
-    const actor = `<ActorDetails>`
+
+    // Ubrania zenskie
+    const hairFemale = cloth(1022, 1, 'swf/hair', 'hair_6.swf', '', 1);
+    const topFemale = cloth(1011, 2, 'swf/tops', 't-shirt_2.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
+    const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x990099,0xffcc00,0xffff33', 1);
+    const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
+    const relsFemale = [
+        rel(1022, ''),
+        rel(1011, '0xff66cc,0x99ffcc'),
+        rel(1054, '0x990099,0xffcc00'),
+        rel(1028, '0x6699cc,0x990000')
+    ].join('');
+
+    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale;
+    const allRels = relsFemale + relsMale;
+
+    const maleActor = `<ActorDetails>`
         + node('ActorId', 0)
         + node('_ActorId', 0)
         + node('Name', '')
@@ -1732,23 +1757,45 @@ const soapRegisterNewUserDataXml = () => {
         + node('MouthId', 4)
         + node('EyeColors', '0x3a6eb5')
         + node('MouthColors', 'skincolor,0xb64254')
-        + `<ActorClothesRels>${rels}</ActorClothesRels>`
-        + `<_ActorClothesRels>${rels}</_ActorClothesRels>`
+        + `<ActorClothesRels>${relsMale}</ActorClothesRels>`
+        + `<_ActorClothesRels>${relsMale}</_ActorClothesRels>`
+        + `<Clothes>${hairMale}${topMale}${bottomMale}${shoesMale}</Clothes>`
+        + `<_Clothes>${hairMale}${topMale}${bottomMale}${shoesMale}</_Clothes>`
         + `</ActorDetails>`;
 
-    // Ten main 2010 bywa wybredny: jedne buildy szukaja pol z duzej litery,
-    // inne z malej albo z podkreslnikiem. Dlatego odpowiedz daje wszystkie aliasy.
+    const femaleActor = `<ActorDetails>`
+        + node('ActorId', 0)
+        + node('_ActorId', 0)
+        + node('Name', '')
+        + node('_Name', '')
+        + node('Gender', 'Female')
+        + node('_Gender', 'Female')
+        + node('SkinSWF', 'femaleskin')
+        + node('_SkinSWF', 'femaleskin')
+        + node('SkinColor', '0xffd1b3')
+        + node('_SkinColor', '0xffd1b3')
+        + node('EyeId', 1)
+        + node('NoseId', 1)
+        + node('MouthId', 1)
+        + node('EyeColors', '0x5b351c')
+        + node('MouthColors', 'skincolor,0xd45a6a')
+        + `<ActorClothesRels>${relsFemale}</ActorClothesRels>`
+        + `<_ActorClothesRels>${relsFemale}</_ActorClothesRels>`
+        + `<Clothes>${hairFemale}${topFemale}${bottomFemale}${shoesFemale}</Clothes>`
+        + `<_Clothes>${hairFemale}${topFemale}${bottomFemale}${shoesFemale}</_Clothes>`
+        + `</ActorDetails>`;
+
     const core = [
-        `<Eyes>${eye}</Eyes>`, `<eyes>${eye}</eyes>`, `<_eyes>${eye}</_eyes>`,
-        `<Noses>${nose}</Noses>`, `<noses>${nose}</noses>`, `<_noses>${nose}</_noses>`,
-        `<Mouths>${mouth}</Mouths>`, `<mouths>${mouth}</mouths>`, `<_mouths>${mouth}</_mouths>`,
-        `<EyeShadows>${eyeShadow}</EyeShadows>`, `<eyeShadows>${eyeShadow}</eyeShadows>`, `<_eyeShadows>${eyeShadow}</_eyeShadows>`,
-        `<Clothes>${hair}${top}${bottom}${shoes}</Clothes>`, `<clothes>${hair}${top}${bottom}${shoes}</clothes>`, `<_clothes>${hair}${top}${bottom}${shoes}</_clothes>`,
-        `<ActorClothesRels>${rels}</ActorClothesRels>`, `<actorClothesRels>${rels}</actorClothesRels>`, `<_actorClothesRels>${rels}</_actorClothesRels>`,
-        `<MaleActor>${actor}</MaleActor>`, `<maleActor>${actor}</maleActor>`, `<_maleActor>${actor}</_maleActor>`,
-        `<FemaleActor>${actor}</FemaleActor>`, `<femaleActor>${actor}</femaleActor>`, `<_femaleActor>${actor}</_femaleActor>`,
-        `<DefaultMaleActor>${actor}</DefaultMaleActor>`, `<defaultMaleActor>${actor}</defaultMaleActor>`, `<_defaultMaleActor>${actor}</_defaultMaleActor>`,
-        `<DefaultFemaleActor>${actor}</DefaultFemaleActor>`, `<defaultFemaleActor>${actor}</defaultFemaleActor>`, `<_defaultFemaleActor>${actor}</_defaultFemaleActor>`
+        `<Eyes>${eyeAll}</Eyes>`, `<eyes>${eyeAll}</eyes>`, `<_eyes>${eyeAll}</_eyes>`,
+        `<Noses>${noseAll}</Noses>`, `<noses>${noseAll}</noses>`, `<_noses>${noseAll}</_noses>`,
+        `<Mouths>${mouthAll}</Mouths>`, `<mouths>${mouthAll}</mouths>`, `<_mouths>${mouthAll}</_mouths>`,
+        `<EyeShadows>${eyeShadow}${eyeShadow2}</EyeShadows>`, `<eyeShadows>${eyeShadow}${eyeShadow2}</eyeShadows>`, `<_eyeShadows>${eyeShadow}${eyeShadow2}</_eyeShadows>`,
+        `<Clothes>${allClothes}</Clothes>`, `<clothes>${allClothes}</clothes>`, `<_clothes>${allClothes}</_clothes>`,
+        `<ActorClothesRels>${allRels}</ActorClothesRels>`, `<actorClothesRels>${allRels}</actorClothesRels>`, `<_actorClothesRels>${allRels}</_actorClothesRels>`,
+        `<MaleActor>${maleActor}</MaleActor>`, `<maleActor>${maleActor}</maleActor>`, `<_maleActor>${maleActor}</_maleActor>`,
+        `<FemaleActor>${femaleActor}</FemaleActor>`, `<femaleActor>${femaleActor}</femaleActor>`, `<_femaleActor>${femaleActor}</_femaleActor>`,
+        `<DefaultMaleActor>${maleActor}</DefaultMaleActor>`, `<defaultMaleActor>${maleActor}</defaultMaleActor>`, `<_defaultMaleActor>${maleActor}</_defaultMaleActor>`,
+        `<DefaultFemaleActor>${femaleActor}</DefaultFemaleActor>`, `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`, `<_defaultFemaleActor>${femaleActor}</_defaultFemaleActor>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${core}<RegisterNewUserData>${core}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
