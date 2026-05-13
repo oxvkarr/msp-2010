@@ -17,12 +17,12 @@ const dbPath = path.join(__dirname, 'msp-db.json');
 const debugLogPath = path.join(__dirname, 'msp-debug.log');
 const serverPidPath = path.join(__dirname, 'msp-server.pid');
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
-const mongoDbName = process.env.MONGODB_DB || 'msp_2016';
+const mongoDbName = process.env.MONGODB_DB || 'msp_2010';
 const mongoStateCollection = process.env.MONGODB_STATE_COLLECTION || 'state';
 const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev';
 const officialMspAssetBaseUrl = (process.env.MSPCDN_ASSET_BASE_URL || 'https://assets.mspcdns.com/msp/103.1.40').replace(/\/+$/, '');
 const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
-const defaultRemoteGatewayUrl = 'https://msp-2016.onrender.com';
+const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
 const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
 const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE !== '0';
@@ -442,7 +442,7 @@ const fallbackPlayHtml = (req) => {
                 <div id="light-db" class="debug-light warn"><span class="debug-light-dot"></span><span>Baza</span></div>
             </section>
             <section id="debug-links">
-                <button class="secondary debug-link" data-url="https://msp-2016.onrender.com/api/health" type="button">Health</button>
+                <button class="secondary debug-link" data-url="https://msp-2010.onrender.com/api/health" type="button">Health</button>
                 <button class="secondary debug-link" data-url="https://dashboard.render.com" type="button">Render</button>
                 <button class="secondary debug-link" data-url="https://cloud.mongodb.com" type="button">MongoDB</button>
                 <button class="secondary debug-link" data-url="https://dash.cloudflare.com" type="button">R2</button>
@@ -812,7 +812,7 @@ const localCountry = (country, iso, locale, txt, enabled = false) => ({
     sys_cap: locale.split('_')[0],
     ISO_3166: iso,
     txt,
-    supportMail: 'support@msp-2016.local',
+    supportMail: 'support@msp-2010.local',
     cdnLocalBasePath: 'http://127.0.0.1/',
     infoSiteMap: 'http://127.0.0.1/'
 });
