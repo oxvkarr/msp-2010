@@ -1779,11 +1779,13 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
         return;
     }
     if (/GetActorCount/i.test(action)) {
-        sendSoapResult(res, 'GetActorCount', '<GetActorCountResult>0</GetActorCountResult>');
+        const count = Array.isArray(db.users) ? db.users.length : 0;
+        sendSoapResult(res, 'GetActorCount', `<GetActorCountResult>${count}</GetActorCountResult>`);
         return;
     }
     if (/GetMovieCount/i.test(action)) {
-        sendSoapResult(res, 'GetMovieCount', '<GetMovieCountResult>0</GetMovieCountResult>');
+        const count = Array.isArray(db.movies) ? db.movies.length : 0;
+        sendSoapResult(res, 'GetMovieCount', `<GetMovieCountResult>${count}</GetMovieCountResult>`);
         return;
     }
     if (/LoadActorWithCurrentClothesBasicDataOnly/i.test(action)) {
@@ -2126,71 +2128,7 @@ const previewValue = (value, limit = 900) => {
     });
     return text && text.length > limit ? `${text.slice(0, limit)}...` : text;
 };
-function isBadValue(v) {
-  const s = String(v ?? "").trim().toLowerCase();
-  return !s || s === "null" || s === "undefined" || s === "nan" || s === "none";
-}
 
-function cleanSwfName(v, fallback) {
-  if (isBadValue(v)) return fallback;
-  let s = String(v).trim();
-  s = s.replace(/^.*\//, "");
-  s = s.replace(/\.swf$/i, "");
-  return isBadValue(s) ? fallback : s;
-}
-
-function fixActorNulls(actor) {
-  actor = actor || {};
-
-  let gender = actor.gender || actor.Gender || "Boy";
-  const g = String(gender).toLowerCase();
-
-  if (g.includes("girl") || g.includes("female") || g === "f" || g === "1") {
-    gender = "Girl";
-  } else {
-    gender = "Boy";
-  }
-
-  const defaultSkin = gender === "Girl" ? "femaleskin" : "maleskin";
-  const defaultEye = gender === "Girl" ? "eyes_1" : "male_eye1";
-  const defaultNose = gender === "Girl" ? "nose_6" : "nose_4";
-  const defaultMouth = gender === "Girl" ? "female_mouth_1" : "male_mouth_1";
-
-  actor.gender = gender;
-  actor.Gender = gender;
-
-  actor.skin = cleanSwfName(actor.skin || actor.Skin || actor.skinSwf || actor.SkinSWF, defaultSkin);
-  actor.Skin = actor.skin;
-
-  actor.eye = cleanSwfName(actor.eye || actor.Eye || actor.eyeSwf || actor.EyeSWF, defaultEye);
-  actor.Eye = actor.eye;
-
-  actor.nose = cleanSwfName(actor.nose || actor.Nose || actor.noseSwf || actor.NoseSWF, defaultNose);
-  actor.Nose = actor.nose;
-
-  actor.mouth = cleanSwfName(actor.mouth || actor.Mouth || actor.mouthSwf || actor.MouthSWF, defaultMouth);
-  actor.Mouth = actor.mouth;
-
-  if (!Array.isArray(actor.clothes) || actor.clothes.length === 0) {
-    actor.clothes = gender === "Girl"
-      ? [
-          { type: "hair", filename: "hair_5.swf", url: "/swf/hair/hair_5.swf" },
-          { type: "top", filename: "top_2_Honey.swf", url: "/swf/tops/top_2_Honey.swf" },
-          { type: "bottom", filename: "Honey_bottoms_8.swf", url: "/swf/bottoms/Honey_bottoms_8.swf" },
-          { type: "footwear", filename: "shoes_2.swf", url: "/swf/footwear/shoes_2.swf" }
-        ]
-      : [
-          { type: "hair", filename: "hair_3.swf", url: "/swf/hair/hair_3.swf" },
-          { type: "top", filename: "body armor top.swf", url: "/swf/tops/body%20armor%20top.swf" },
-          { type: "bottom", filename: "long trousers_1.swf", url: "/swf/bottoms/long%20trousers_1.swf" },
-          { type: "footwear", filename: "shoes_1.swf", url: "/swf/footwear/shoes_1.swf" }
-        ];
-  }
-
-  actor.Clothes = actor.clothes;
-
-  return actor;
-}
 const buildAmfResponse = (version, responseUri, value, options = {}) => {
     let body;
     let usedAmfjs = !options.legacy;
@@ -2924,10 +2862,10 @@ const actorForLoginArgs = (args = []) => {
 
     if (user && passwordMatches(user, password)) {
         actor = findActorById(user.actorId) || null;
-    } else if (String(username || '').toLowerCase() === DEV_USERNAME && password === DEV_PASSWORD) {
-        actor = findActorById(DEV_ACTOR_ID) || db.actors[0] || null;
+        log(`[LOGIN AUTH] username=${username || ''} matched user actorId=${user.actorId} actor=${actor ? 'found' : 'missing-in-actors'}`);
+    } else {
+        log(`[LOGIN AUTH] username=${username || ''} FAILED user=${user ? 'found-but-wrong-password' : 'not-found'}`);
     }
-    log(`[LOGIN AUTH] username=${username || ''} ${actor ? 'ok' : 'invalid'}`);
     return actor;
 };
 
@@ -2964,6 +2902,8 @@ const inferGender = (filename) => {
     return 'Unisex';
 };
 
+const hashPassword = (password) => crypto.createHash('sha256').update(String(password || ''), 'utf8').digest('hex');
+
 const buildClothesCatalog = () => {
     const stuffDir = path.join(publicPath, 'swf', 'stuff');
     return walkFiles(stuffDir, (filePath) => filePath.toLowerCase().endsWith('.swf'), 800)
@@ -2986,7 +2926,7 @@ const defaultDb = () => ({
     users: [{
         id: 1,
         username: DEV_USERNAME,
-        password: DEV_PASSWORD,
+        passwordHash: hashPassword(DEV_PASSWORD),
         actorId: DEV_ACTOR_ID,
         role: 'admin'
     }],
@@ -3028,6 +2968,13 @@ const ensureDbShape = (state) => {
     next.messages = Array.isArray(next.messages) ? next.messages : [];
     next.wallPosts = Array.isArray(next.wallPosts) ? next.wallPosts : [];
     next.transactions = Array.isArray(next.transactions) ? next.transactions : [];
+    // Migracja: zamien plaintext password na passwordHash
+    next.users = next.users.map((user) => {
+        if (!user.passwordHash && user.password) {
+            return Object.assign({}, user, { passwordHash: hashPassword(user.password), password: undefined });
+        }
+        return user;
+    });
     return next;
 };
 
@@ -3057,7 +3004,7 @@ const loadMongoDb = async () => {
 
     try {
         mongoClient = new MongoClient(mongoUri, {
-            serverSelectionTimeoutMS: 5000
+            serverSelectionTimeoutMS: 8000
         });
         await mongoClient.connect();
         mongoDatabase = mongoClient.db(mongoDbName);
@@ -3065,16 +3012,27 @@ const loadMongoDb = async () => {
         let document = await collection.findOne({ _id: 'main' });
 
         if (!document) {
-            document = Object.assign({ _id: 'main' }, defaultDb());
+            // Pierwsza inicjalizacja — zapisz domyslna baze
+            const seed = defaultDb();
+            // Upewnij sie ze dev user ma passwordHash
+            if (seed.users && seed.users.length > 0 && !seed.users[0].passwordHash) {
+                seed.users[0].passwordHash = hashPassword(seed.users[0].password || DEV_PASSWORD);
+                delete seed.users[0].password;
+            }
+            document = Object.assign({ _id: 'main' }, seed);
             await collection.insertOne(document);
             log(`[DB] Utworzono baze MongoDB: ${mongoDbName}.${mongoStateCollection}`);
         }
 
         const { _id, ...storedState } = document;
+        // Upewnij sie ze catalog.clothes istnieje (nie nadpisuj uzytkownikow!)
+        if (!storedState.catalog || !Array.isArray(storedState.catalog.clothes) || storedState.catalog.clothes.length === 0) {
+            storedState.catalog = { clothes: buildClothesCatalog() };
+            await collection.updateOne({ _id: 'main' }, { $set: { catalog: storedState.catalog } }, { upsert: true });
+        }
         const state = ensureDbShape(storedState);
-        await collection.updateOne({ _id: 'main' }, { $set: state }, { upsert: true });
         dbSource = 'mongodb';
-        log(`[DB] Polaczono z MongoDB: ${mongoDbName}.${mongoStateCollection} (${state.catalog.clothes.length} ubran)`);
+        log(`[DB] Polaczono z MongoDB: ${mongoDbName}.${mongoStateCollection} users=${state.users.length} actors=${state.actors.length} ubran=${state.catalog.clothes.length}`);
         return state;
     } catch (err) {
         dbSource = 'json';
@@ -3104,9 +3062,22 @@ let db = defaultDb();
 const saveDb = async () => {
     db = ensureDbShape(db);
     if (mongoClient && mongoDatabase) {
+        // Zapisujemy tylko dane ktore sie zmieniaja — nie catalog (za duzy, niezmienny)
+        const toSave = {
+            version: db.version,
+            users: db.users,
+            actors: db.actors,
+            inventory: db.inventory,
+            looks: db.looks,
+            movies: db.movies,
+            friends: db.friends,
+            messages: db.messages,
+            wallPosts: db.wallPosts,
+            transactions: db.transactions
+        };
         await mongoDatabase.collection(mongoStateCollection).updateOne(
             { _id: 'main' },
-            { $set: db },
+            { $set: toSave },
             { upsert: true }
         );
         return;
@@ -3120,8 +3091,6 @@ const isDevCredentials = (requestBody) => {
 };
 
 const methodLeaf = (method) => String(method || '').split('.').pop();
-
-const hashPassword = (password) => crypto.createHash('sha256').update(String(password || ''), 'utf8').digest('hex');
 
 const collectStrings = (value, output = []) => {
     if (typeof value === 'string') {
@@ -3386,6 +3355,12 @@ const getAmfResultForMethod = async (method, args = []) => {
         const name = args.find((arg) => typeof arg === 'string') || '';
         return String(appSettingValue(name));
     }
+    if (method.endsWith('GetActorCount') || method.endsWith('GetOnlineCount') || method.endsWith('GetOnlineUserCount') || method.endsWith('GetNumberOfOnlineUsers')) {
+        return Array.isArray(db.users) ? db.users.length : 1;
+    }
+    if (method.endsWith('GetMovieCount')) {
+        return Array.isArray(db.movies) ? db.movies.length : 0;
+    }
     if (method.endsWith('GetCurrentPaymentPossibilities')) {
         return [];
     }
@@ -3520,22 +3495,21 @@ const handleLocalGatewayRequest = async (req, res, fallbackReason = '') => {
     }
     try {
         const result = await getAmfResultForMethod(method, decodedArgs);
-        
-        const useLegacyEncoder =
-            method === 'MovieStarPlanet.WebService.User.AMFUserServiceWeb.Login' ||
-            method.endsWith('LoadDataForRegisterNewUser') ||
-            method.endsWith('SaveBirthInfoWithTicket') ||
-            isCreateNewUserMethod(method);
 
+        // Uzywamy amfjs dla wszystkich metod — legacy tylko jesli amfjs rzuci wyjatek.
+        // Wyjatki: Login przez stary klient AMFUserServiceWeb wymaga legacy+amf3.
+        const forceAmf3 = shouldUseAmf3(method, result);
+        // Nie uzywamy useLegacyEncoder domyslnie — amfjs powinien dzialac dla CreateNewUser i LoadDataForRegisterNewUser.
+        // Legacy jest uzywane tylko gdy amfjs rzuci blad (patrz: buildAmfResponse fallback).
         const responseBody = buildAmfResponse(envelope ? envelope.version : 0, responseUri, result, {
-            amf3: shouldUseAmf3(method, result),
+            amf3: forceAmf3,
             debugLabel: method,
-            legacy: useLegacyEncoder
+            legacy: false
         });
         dumpAmfExchange(method, req.body, responseBody, {
             responseUri,
-            amf3: shouldUseAmf3(method, result),
-            legacy: useLegacyEncoder,
+            amf3: forceAmf3,
+            legacy: false,
             resultPreview: previewValue(result, 2000)
         });
         res.type('application/x-amf').send(responseBody);
