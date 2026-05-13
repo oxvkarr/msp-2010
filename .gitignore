@@ -5,3 +5,5 @@ node_modules/
 **/asset-cache/
 **/.wrangler/
 dist/
+*.exe
+MSP-win32-x64/
