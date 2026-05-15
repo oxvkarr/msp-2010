@@ -1718,12 +1718,40 @@ const soapRegisterNewUserDataXml = () => {
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
     const relsFemale = [
         rel(1022, ''),
-        rel(1011, '0xff66cc,0x99ffcc'),
+        rel(1036, '0x666666,0xFF00CC'),
         rel(1054, '0x990099,0xffcc00'),
         rel(1028, '0x6699cc,0x990000')
     ].join('');
 
-    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale;
+    const extraClothes = [
+        cloth(2001, 1, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', '0x6b3f24,0xf2c27b', 1),
+        cloth(2002, 1, 'swf/hair', '2009_hair_girls_Honey_5 (Twilight Alice).swf', '0x2d1b12,0x7c4a2f', 1),
+        cloth(2003, 1, 'swf/hair', 'BFF_2013_GirlHair_2_dg.swf', '0xf7d27e,0xffffff', 1),
+        cloth(2004, 1, 'swf/hair', 'beautyParlour_2012_hairMale_mf.swf', '0x2b1d16,0x8a5a3c', 2),
+        cloth(2005, 1, 'swf/hair', 'april_hair_boys_4.swf', '0x3b2416,0xb87a44', 2),
+        cloth(2006, 1, 'swf/hair', 'beverly_2013_BoyHair_rd.swf', '0x1f1f1f,0x808080', 2),
+
+        cloth(2101, 2, 'swf/tops', 'BFF_2013_GirlsBaseballJacket_ms.swf', '0xff66cc,0xffffff', 1),
+        cloth(2102, 2, 'swf/tops', 'BackStageFashion_2013_GirlsJacket_ms.swf', '0x111111,0xffccff', 1),
+        cloth(2103, 2, 'swf/tops', '66_2013_top1_dg.swf', '0xff3399,0xffffff', 1),
+        cloth(2104, 2, 'swf/tops', 'BFF_2013_BoysBomber_ms.swf', '0x3366cc,0xffffff', 2),
+        cloth(2105, 2, 'swf/tops', 'BeautyParlour_2012_Male_Top_nd.swf', '0x333333,0x999999', 2),
+        cloth(2106, 2, 'swf/tops', '50s_2011_male_tops_2.swf', '0x111111,0xff0000', 2),
+
+        cloth(2201, 3, 'swf/bottoms', 'Honey_bottoms_8.swf', '0xff0066,0xfeffff', 1),
+        cloth(2202, 3, 'swf/bottoms', '70s_2011_female_bottoms_1.swf', '0x663399,0xffffff', 1),
+        cloth(2203, 3, 'swf/bottoms', 'BFF_2013_glittertights_dg.swf', '0x111111,0xffccff', 1),
+        cloth(2204, 3, 'swf/bottoms', 'long trousers_2.swf', '0x222222,0x666666', 2),
+        cloth(2205, 3, 'swf/bottoms', '2009_Honey_bottoms_5_boys (Cowboy).swf', '0x6b3f24,0x333333', 2),
+        cloth(2206, 3, 'swf/bottoms', 'august_bottoms_male_2.swf', '0x1f2b46,0xffffff', 2),
+
+        cloth(2301, 10, 'swf/footwear', 'long boots_1.swf', '0x111111,0xdddddd', 1),
+        cloth(2302, 10, 'swf/footwear', 'shoes_2.swf', '0xff66cc,0xffffff', 1),
+        cloth(2303, 10, 'swf/footwear', 'sneakers_2.swf', '0x3366cc,0xffffff', 2),
+        cloth(2304, 10, 'swf/footwear', 'sneakers_3.swf', '0x111111,0xff0000', 2)
+    ].join('');
+
+    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale + extraClothes;
     const allRels = relsFemale + relsMale;
 
     const maleActor = `<ActorDetails>`
