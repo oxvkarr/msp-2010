@@ -1789,28 +1789,12 @@ const soapRegisterNewUserDataXml = () => {
         + `</ActorDetails>`;
 
     const registerData = [
-        `<Eyes>${eyeAll}</Eyes>`,
         `<eyes>${eyeAll}</eyes>`,
-        `<Noses>${noseAll}</Noses>`,
         `<noses>${noseAll}</noses>`,
-        `<Mouths>${mouthAll}</Mouths>`,
         `<mouths>${mouthAll}</mouths>`,
-        `<EyeShadows>${eyeShadow}${eyeShadow2}</EyeShadows>`,
-        `<eyeShadows>${eyeShadow}${eyeShadow2}</eyeShadows>`,
-        `<Clothes>${allClothes}</Clothes>`,
-        `<clothes>${allClothes}</clothes>`,
-        `<ActorClothesRels>${allRels}</ActorClothesRels>`,
-        `<actorClothesRels>${allRels}</actorClothesRels>`,
-        `<MaleActor>${maleActor}</MaleActor>`,
-        `<maleActor>${maleActor}</maleActor>`,
-        `<DefaultMaleActor>${maleActor}</DefaultMaleActor>`,
-        `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
-        `<FemaleActor>${femaleActor}</FemaleActor>`,
-        `<femaleActor>${femaleActor}</femaleActor>`,
-        `<DefaultFemaleActor>${femaleActor}</DefaultFemaleActor>`,
-        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
+        `<clothes>${allClothes}</clothes>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${registerData}<RegisterNewUserData>${registerData}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
