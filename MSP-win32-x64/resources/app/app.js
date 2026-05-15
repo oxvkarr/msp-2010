@@ -1786,19 +1786,14 @@ const soapRegisterNewUserDataXml = () => {
         + `<_Clothes>${hairFemale}${topFemale}${bottomFemale}${shoesFemale}</_Clothes>`
         + `</ActorDetails>`;
 
-    const core = [
-        `<Eyes>${eyeAll}</Eyes>`, `<eyes>${eyeAll}</eyes>`, `<_eyes>${eyeAll}</_eyes>`,
-        `<Noses>${noseAll}</Noses>`, `<noses>${noseAll}</noses>`, `<_noses>${noseAll}</_noses>`,
-        `<Mouths>${mouthAll}</Mouths>`, `<mouths>${mouthAll}</mouths>`, `<_mouths>${mouthAll}</_mouths>`,
-        `<EyeShadows>${eyeShadow}${eyeShadow2}</EyeShadows>`, `<eyeShadows>${eyeShadow}${eyeShadow2}</eyeShadows>`, `<_eyeShadows>${eyeShadow}${eyeShadow2}</_eyeShadows>`,
-        `<Clothes>${allClothes}</Clothes>`, `<clothes>${allClothes}</clothes>`, `<_clothes>${allClothes}</_clothes>`,
-        `<ActorClothesRels>${allRels}</ActorClothesRels>`, `<actorClothesRels>${allRels}</actorClothesRels>`, `<_actorClothesRels>${allRels}</_actorClothesRels>`,
-        `<MaleActor>${maleActor}</MaleActor>`, `<maleActor>${maleActor}</maleActor>`, `<_maleActor>${maleActor}</_maleActor>`,
-        `<FemaleActor>${femaleActor}</FemaleActor>`, `<femaleActor>${femaleActor}</femaleActor>`, `<_femaleActor>${femaleActor}</_femaleActor>`,
-        `<DefaultMaleActor>${maleActor}</DefaultMaleActor>`, `<defaultMaleActor>${maleActor}</defaultMaleActor>`, `<_defaultMaleActor>${maleActor}</_defaultMaleActor>`,
-        `<DefaultFemaleActor>${femaleActor}</DefaultFemaleActor>`, `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`, `<_defaultFemaleActor>${femaleActor}</_defaultFemaleActor>`
+    const registerData = [
+        `<eyes>${eyeAll}</eyes>`,
+        `<noses>${noseAll}</noses>`,
+        `<mouths>${mouthAll}</mouths>`,
+        `<eyeShadows>${eyeShadow}${eyeShadow2}</eyeShadows>`,
+        `<clothes>${allClothes}</clothes>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${core}<RegisterNewUserData>${core}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };

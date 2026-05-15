@@ -2,7 +2,13 @@ const { app, BrowserWindow, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const flashPath = path.join(__dirname, 'pepflashplayer.dll');
+const resolveRuntimePath = (...parts) => {
+    const packedPath = path.join(__dirname, ...parts);
+    if (fs.existsSync(packedPath)) return packedPath;
+    return packedPath.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
+};
+
+const flashPath = resolveRuntimePath('pepflashplayer.dll');
 const debugLogPath = path.join(__dirname, 'msp-debug.log');
 const LOCAL_BASE_URL = 'http://127.0.0.1';
 const PLAY_PARAMS = 'country=pl&locale=pl_PL&language=pl&selectedLocale=pl_PL&server=pl&domain=pl';
