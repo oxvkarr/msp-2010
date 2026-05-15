@@ -1645,7 +1645,7 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const face = (tag, idName, id, swf, colors = '', reg = 3) => `<${tag}>`
+    const face = (tag, idName, id, swf, colors = '', skinId = 0, reg = 1) => `<${tag}>`
         + node(idName, id)
         + node('Id', id)
         + node('SWF', swf)
@@ -1656,10 +1656,11 @@ const soapRegisterNewUserDataXml = () => {
         + node('_RegNewUser', reg)
         + node('Price', 0)
         + node('Vip', false)
-        + node('SkinId', 0)
+        + node('SkinId', skinId)
+        + node('_SkinId', skinId)
         + node('sortorder', id)
         + `</${tag}>`;
-    const cloth = (id, cat, swf, filename, colors = '', reg = 3) => `<Cloth>`
+    const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothId', id)
         + node('_ClothId', id)
         + node('ClothesId', id)
@@ -1675,14 +1676,15 @@ const soapRegisterNewUserDataXml = () => {
         + node('_ColorScheme', colors)
         + node('RegNewUser', reg)
         + node('_RegNewUser', reg)
-        + node('Gender', reg)
-        + node('_Gender', reg)
+        + node('Gender', skinId)
+        + node('_Gender', skinId)
         + node('Price', 0)
         + node('DiamondsPrice', 0)
         + node('Vip', false)
         + node('Scale', 1)
         + node('ShopId', 0)
-        + node('SkinId', 0)
+        + node('SkinId', skinId)
+        + node('_SkinId', skinId)
         + node('sortorder', id)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
@@ -1712,8 +1714,8 @@ const soapRegisterNewUserDataXml = () => {
     const mouth = face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2);
     const mouthFemale = face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1);
     const mouthAll = mouthFemale + mouth;
-    const eyeShadow = face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 3);
-    const eyeShadow2 = face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 3);
+    const eyeShadow = face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 1);
+    const eyeShadow2 = face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 1);
 
     // Ubrania meskie
     const hairMale = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
@@ -1787,13 +1789,28 @@ const soapRegisterNewUserDataXml = () => {
         + `</ActorDetails>`;
 
     const registerData = [
+        `<Eyes>${eyeAll}</Eyes>`,
         `<eyes>${eyeAll}</eyes>`,
+        `<Noses>${noseAll}</Noses>`,
         `<noses>${noseAll}</noses>`,
+        `<Mouths>${mouthAll}</Mouths>`,
         `<mouths>${mouthAll}</mouths>`,
+        `<EyeShadows>${eyeShadow}${eyeShadow2}</EyeShadows>`,
         `<eyeShadows>${eyeShadow}${eyeShadow2}</eyeShadows>`,
-        `<clothes>${allClothes}</clothes>`
+        `<Clothes>${allClothes}</Clothes>`,
+        `<clothes>${allClothes}</clothes>`,
+        `<ActorClothesRels>${allRels}</ActorClothesRels>`,
+        `<actorClothesRels>${allRels}</actorClothesRels>`,
+        `<MaleActor>${maleActor}</MaleActor>`,
+        `<maleActor>${maleActor}</maleActor>`,
+        `<DefaultMaleActor>${maleActor}</DefaultMaleActor>`,
+        `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
+        `<FemaleActor>${femaleActor}</FemaleActor>`,
+        `<femaleActor>${femaleActor}</femaleActor>`,
+        `<DefaultFemaleActor>${femaleActor}</DefaultFemaleActor>`,
+        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}<RegisterNewUserData>${registerData}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
