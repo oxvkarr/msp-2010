@@ -1839,7 +1839,7 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
 };
 
 const shouldHandleSoapBeforeRemote = (action) => (
-    /LoadDataForRegisterNewUser/i.test(action)
+    !useRemoteGateway && /LoadDataForRegisterNewUser/i.test(action)
 );
 
 app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
