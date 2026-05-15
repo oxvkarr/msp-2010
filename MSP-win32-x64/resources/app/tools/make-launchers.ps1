@@ -3,6 +3,9 @@ $ErrorActionPreference = "Stop"
 $appDir = Split-Path -Parent $PSScriptRoot
 $distDir = Resolve-Path (Join-Path $appDir "..\..")
 $electronDistDir = Join-Path $appDir "node_modules\electron\dist"
+$flashPlugin = Join-Path $appDir "pepflashplayer.dll"
+$downloadsDir = Resolve-Path (Join-Path $appDir "..\..\..\..")
+$fallbackFlashPlugin = Join-Path $downloadsDir "MSPClient2016\MSP-win32-x64\resources\app\pepflashplayer.dll"
 $playerExe = Join-Path $distDir "MSP.exe"
 $debugExe = Join-Path $distDir "MSP-Debug.exe"
 $backendVbs = Join-Path $distDir "MSP-Backend.vbs"
@@ -34,14 +37,30 @@ if (!(Test-Path $playerExe)) {
 }
 
 foreach ($fileName in $runtimeFiles) {
-    Copy-Item -LiteralPath (Join-Path $electronDistDir $fileName) -Destination (Join-Path $distDir $fileName) -Force
+    $targetFile = Join-Path $distDir $fileName
+    if ((!(Test-Path $targetFile)) -or ((Get-Item -LiteralPath $targetFile).Length -eq 0)) {
+        Copy-Item -LiteralPath (Join-Path $electronDistDir $fileName) -Destination $targetFile -Force
+    }
 }
 
 foreach ($dirName in @("locales", "swiftshader")) {
-    Copy-Item -LiteralPath (Join-Path $electronDistDir $dirName) -Destination (Join-Path $distDir $dirName) -Recurse -Force
+    $targetDir = Join-Path $distDir $dirName
+    if (!(Test-Path $targetDir)) {
+        Copy-Item -LiteralPath (Join-Path $electronDistDir $dirName) -Destination $targetDir -Recurse -Force
+    }
 }
 
-Copy-Item -LiteralPath $playerExe -Destination $debugExe -Force
+if ((!(Test-Path $flashPlugin)) -or ((Get-Item -LiteralPath $flashPlugin).Length -eq 0)) {
+    if (Test-Path $fallbackFlashPlugin) {
+        Copy-Item -LiteralPath $fallbackFlashPlugin -Destination $flashPlugin -Force
+    } else {
+        Write-Warning "Missing Flash plugin: $flashPlugin"
+    }
+}
+
+if (!(Test-Path $debugExe)) {
+    Copy-Item -LiteralPath $playerExe -Destination $debugExe -Force
+}
 
 $vbsContent = @'
 Set shell = CreateObject("WScript.Shell")
