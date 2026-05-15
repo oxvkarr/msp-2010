@@ -2,13 +2,43 @@ $ErrorActionPreference = "Stop"
 
 $appDir = Split-Path -Parent $PSScriptRoot
 $distDir = Resolve-Path (Join-Path $appDir "..\..")
+$electronDistDir = Join-Path $appDir "node_modules\electron\dist"
 $playerExe = Join-Path $distDir "MSP.exe"
 $debugExe = Join-Path $distDir "MSP-Debug.exe"
 $backendVbs = Join-Path $distDir "MSP-Backend.vbs"
 $backendStopCmd = Join-Path $distDir "MSP-Backend-Stop.cmd"
+$runtimeFiles = @(
+    "chrome_100_percent.pak",
+    "chrome_200_percent.pak",
+    "d3dcompiler_47.dll",
+    "ffmpeg.dll",
+    "icudtl.dat",
+    "libEGL.dll",
+    "libGLESv2.dll",
+    "LICENSES.chromium.html",
+    "resources.pak",
+    "snapshot_blob.bin",
+    "v8_context_snapshot.bin",
+    "version",
+    "vk_swiftshader.dll",
+    "vk_swiftshader_icd.json",
+    "vulkan-1.dll"
+)
+
+if (!(Test-Path $electronDistDir)) {
+    throw "Missing Electron runtime folder: $electronDistDir"
+}
 
 if (!(Test-Path $playerExe)) {
-    throw "Missing player launcher: $playerExe"
+    Copy-Item -LiteralPath (Join-Path $electronDistDir "electron.exe") -Destination $playerExe -Force
+}
+
+foreach ($fileName in $runtimeFiles) {
+    Copy-Item -LiteralPath (Join-Path $electronDistDir $fileName) -Destination (Join-Path $distDir $fileName) -Force
+}
+
+foreach ($dirName in @("locales", "swiftshader")) {
+    Copy-Item -LiteralPath (Join-Path $electronDistDir $dirName) -Destination (Join-Path $distDir $dirName) -Recurse -Force
 }
 
 Copy-Item -LiteralPath $playerExe -Destination $debugExe -Force
