@@ -1,6 +1,11 @@
 node_modules/
 **/.DS_Store
 msp-debug.log
+msp-server.pid
+msp-db.json
 .env
+*.log
+amf-dumps/
 asset-cache/
+dist/
 .wrangler/
