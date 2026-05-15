@@ -1645,51 +1645,34 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const face = (tag, idName, id, swf, colors = '', skinId = 0, reg = 1) => `<${tag}>`
+    const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
-        + node('Id', id)
+        + node('Name', '')
         + node('SWF', swf)
-        + node('_SWF', swf)
-        + node('DefaultColors', colors)
-        + node('_DefaultColors', colors)
-        + node('RegNewUser', reg)
-        + node('_RegNewUser', reg)
-        + node('Price', 0)
-        + node('Vip', false)
         + node('SkinId', skinId)
-        + node('_SkinId', skinId)
-        + node('sortorder', id)
+        + node('DefaultColors', colors)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
-        + node('ClothId', id)
-        + node('_ClothId', id)
         + node('ClothesId', id)
-        + node('_ClothesId', id)
-        + node('Id', id)
-        + node('ClothesCategoryId', cat)
-        + node('_ClothesCategoryId', cat)
+        + node('Name', '')
         + node('SWF', swf)
-        + node('_SWF', swf)
-        + node('Filename', filename)
-        + node('_Filename', filename)
-        + node('ColorScheme', colors)
-        + node('_ColorScheme', colors)
-        + node('RegNewUser', reg)
-        + node('_RegNewUser', reg)
-        + node('Gender', skinId)
-        + node('_Gender', skinId)
+        + node('ClothesCategoryId', cat)
         + node('Price', 0)
-        + node('DiamondsPrice', 0)
-        + node('Vip', false)
-        + node('Scale', 1)
         + node('ShopId', 0)
         + node('SkinId', skinId)
-        + node('_SkinId', skinId)
+        + node('Filename', filename)
+        + node('Scale', 1)
+        + node('Vip', false)
+        + node('RegNewUser', reg)
         + node('sortorder', id)
+        + node('New', false)
+        + node('Discount', 0)
+        + node('ColorScheme', colors)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
+        + node('Name', '')
         + node('SlotTypeId', cat)
-        + `<SlotType>${node('SlotTypeId', cat)}</SlotType>`
+        + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
         + `</ClothesCategory>`
         + `</Cloth>`;
     const rel = (id, colors = '') => `<ActorClothesRel>`
