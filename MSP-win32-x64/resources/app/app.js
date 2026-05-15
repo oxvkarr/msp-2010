@@ -1182,6 +1182,9 @@ const registrationAssetAlias = (cleanPath) => {
     if (duplicatedWardrobeMatch) {
         return `swf/${duplicatedWardrobeMatch[1]}/${duplicatedWardrobeMatch[2]}.swf`;
     }
+    if (normalized === 'swf/faceparts/noses/nose_1.swf') {
+        return 'swf/faceparts/noses/nose_2.swf';
+    }
     if (normalized === 'swf/tops/nickelodeon_spotlight_girlstop_fj.swf') {
         return 'swf/stuff/nickelodeon_spotlight_girlstop_fj.swf';
     }
@@ -1646,27 +1649,47 @@ const soapRegisterNewUserDataXml = () => {
     const clothingSwf = (filename) => path.basename(filename, '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
+        + node(`_${idName}`, id)
+        + node('Id', id)
         + node('Name', '')
         + node('SWF', swf)
+        + node('_SWF', swf)
         + node('SkinId', skinId)
+        + node('_SkinId', skinId)
         + node('DefaultColors', colors)
+        + node('_DefaultColors', colors)
+        + node('Price', 0)
+        + node('Vip', false)
+        + node('sortorder', id)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
+        + node('ClothId', id)
+        + node('_ClothId', id)
         + node('ClothesId', id)
+        + node('_ClothesId', id)
+        + node('Id', id)
         + node('Name', '')
         + node('SWF', clothingSwf(filename))
+        + node('_SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
+        + node('_ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
         + node('SkinId', skinId)
+        + node('_SkinId', skinId)
         + node('Filename', filename)
+        + node('_Filename', filename)
         + node('Scale', 1)
         + node('Vip', false)
         + node('RegNewUser', reg)
+        + node('_RegNewUser', reg)
+        + node('Gender', skinId)
+        + node('_Gender', skinId)
         + node('sortorder', id)
         + node('New', false)
         + node('Discount', 0)
         + node('ColorScheme', colors)
+        + node('_ColorScheme', colors)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
         + node('Name', '')
@@ -1687,17 +1710,39 @@ const soapRegisterNewUserDataXml = () => {
         + node('y', 0)
         + `</ActorClothesRel>`;
 
-    const eyeMale = face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2);
-    const eyeFemale = face('Eye', 'EyeId', 1, 'eyes_girlnextdoor_2013/texture', '0x5b351c', 1);
-    const eyeAll = eyeFemale + eyeMale;
-    const nose = face('Nose', 'NoseId', 4, 'nose_3', '', 2);
-    const noseFemale = face('Nose', 'NoseId', 1, 'nose_1', '', 1);
-    const noseAll = noseFemale + nose;
-    const mouth = face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2);
-    const mouthFemale = face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1);
-    const mouthAll = mouthFemale + mouth;
-    const eyeShadow = face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 1);
-    const eyeShadow2 = face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 1);
+    const eyeAll = [
+        face('Eye', 'EyeId', 1, 'eyes_girlnextdoor_2013/texture', '0x5b351c', 1),
+        face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2),
+        face('Eye', 'EyeId', 3, 'eyes_moviestar_2013/texture', '0x5b351c', 1),
+        face('Eye', 'EyeId', 4, 'eyes_theman_2013/texture', '0x2d251c', 2),
+        face('Eye', 'EyeId', 5, 'eyes_prettyperfect_2013/texture', '0x6b3f24', 1),
+        face('Eye', 'EyeId', 6, 'eyes_cateyes_2013/texture', '0x387a4a', 1),
+        face('Eye', 'EyeId', 7, 'eyes_honesthero_2013/texture', '0x3a6eb5', 2),
+        face('Eye', 'EyeId', 8, 'eyes_themanblue_2013/texture', '0x3a6eb5', 2)
+    ].join('');
+    const noseAll = [
+        face('Nose', 'NoseId', 2, 'nose_2', '', 1),
+        face('Nose', 'NoseId', 4, 'nose_4', '', 2),
+        face('Nose', 'NoseId', 5, 'nose_5', '', 1),
+        face('Nose', 'NoseId', 6, 'nose_6', '', 2),
+        face('Nose', 'NoseId', 7, 'nose_7', '', 1),
+        face('Nose', 'NoseId', 8, 'nose_8', '', 2),
+        face('Nose', 'NoseId', 9, 'nose_8_freckles', '', 1)
+    ].join('');
+    const mouthAll = [
+        face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1),
+        face('Mouth', 'MouthId', 2, 'female_mouth_2', 'skincolor,0xd45a6a', 1),
+        face('Mouth', 'MouthId', 3, 'female_mouth_3', 'skincolor,0xd45a6a', 1),
+        face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2),
+        face('Mouth', 'MouthId', 5, 'male_mouth_2', 'skincolor,0xb64254', 2),
+        face('Mouth', 'MouthId', 6, 'male_mouth_4', 'skincolor,0xb64254', 2)
+    ].join('');
+    const eyeShadowAll = [
+        face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 1),
+        face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 1),
+        face('EyeShadow', 'EyeShadowId', 2, 'eyeshadow_cateyes_2013/texture', '0x111111', 1),
+        face('EyeShadow', 'EyeShadowId', 3, 'eyeshadow_bling_2013/texture', '0xffccff', 1)
+    ].join('');
 
     // Ubrania meskie
     const hairMale = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
@@ -1788,7 +1833,7 @@ const soapRegisterNewUserDataXml = () => {
         + node('SkinColor', '0xffd1b3')
         + node('_SkinColor', '0xffd1b3')
         + node('EyeId', 1)
-        + node('NoseId', 1)
+        + node('NoseId', 2)
         + node('MouthId', 1)
         + node('EyeColors', '0x5b351c')
         + node('MouthColors', 'skincolor,0xd45a6a')
@@ -1802,6 +1847,7 @@ const soapRegisterNewUserDataXml = () => {
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
+        `<eyeShadows>${eyeShadowAll}</eyeShadows>`,
         `<clothes>${allClothes}</clothes>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
