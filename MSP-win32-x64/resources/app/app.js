@@ -1213,12 +1213,6 @@ const registrationAssetAlias = (cleanPath) => {
     if (dragonboneEyeShadowMatch) {
         return `swf/dragonbone_faceparts/eyeshadow/${dragonboneEyeShadowMatch[1]}/texture.swf`;
     }
-    if (/^swf\/tops\//.test(normalized)) {
-        return /(?:boy|male|_mf|maletop)/.test(normalized) ? 'swf/world/shopicons/tops_male.swf' : 'swf/world/shopicons/tops.swf';
-    }
-    if (/^swf\/bottoms\//.test(normalized)) {
-        return /(?:boy|male|_mf|maletop|bottoms_male)/.test(normalized) ? 'swf/world/shopicons/bottoms_male.swf' : 'swf/world/shopicons/bottoms.swf';
-    }
     return null;
 };
 
@@ -1645,6 +1639,7 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
+    const clothingSwf = (dir, filename) => `${dir.replace(/\/+$/, '')}/${filename}`;
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1655,7 +1650,7 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', swf)
+        + node('SWF', clothingSwf(swf, filename))
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
@@ -1714,7 +1709,7 @@ const soapRegisterNewUserDataXml = () => {
 
     // Ubrania zenskie
     const hairFemale = cloth(1022, 1, 'swf/hair', 'hair_6.swf', '', 1);
-    const topFemale = cloth(1011, 2, 'swf/tops', 't-shirt_2.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
+    const topFemale = cloth(1036, 2, 'swf/tops', 'top_2_Honey.swf', '0x666666,0xFF00CC', 1);
     const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x990099,0xffcc00,0xffff33', 1);
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
     const relsFemale = [
