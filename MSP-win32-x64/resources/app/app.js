@@ -1074,7 +1074,8 @@ const proxyRemotePathRequest = (req, res, remotePath, label, fallbackHandler) =>
     });
 
     proxyReq.end(body);
-    log(`[REMOTE ${label}] ${req.method} ${req.url} -> ${targetUrl.toString()}`);
+    const actionSuffix = label === 'SOAP' ? ` action=${soapActionFrom(req)}` : '';
+    log(`[REMOTE ${label}] ${req.method} ${req.url}${actionSuffix} -> ${targetUrl.toString()}`);
     return true;
 };
 
@@ -1858,9 +1859,20 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
     sendSoapResult(res, safeAction, `<${safeAction}Result>false</${safeAction}Result>`);
 };
 
+const shouldHandleSoapBeforeRemote = (action) => (
+    /LoadDataForRegisterNewUser/i.test(action)
+);
+
 app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
     if (req.method === 'GET' || /wsdl/i.test(req.url)) {
         res.type('text/xml').send(serviceWsdl);
+        return;
+    }
+
+    const action = soapActionFrom(req);
+    if (shouldHandleSoapBeforeRemote(action)) {
+        log(`[SOAP LOCAL FIRST] action=${action}`);
+        handleSoapCompatibilityRequest(req, res, 'SOAP SERVICE');
         return;
     }
 
