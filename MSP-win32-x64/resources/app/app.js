@@ -1178,6 +1178,10 @@ const warmRemoteGateway = () => new Promise((resolve) => {
 
 const registrationAssetAlias = (cleanPath) => {
     const normalized = decodeURIComponent(String(cleanPath || '')).replace(/\\/g, '/').toLowerCase();
+    const duplicatedWardrobeMatch = normalized.match(/^swf\/(hair|tops|bottoms|footwear)\/swf\/\1\/(.+?)\.swf(?:\.swf)?$/);
+    if (duplicatedWardrobeMatch) {
+        return `swf/${duplicatedWardrobeMatch[1]}/${duplicatedWardrobeMatch[2]}.swf`;
+    }
     if (normalized === 'swf/tops/nickelodeon_spotlight_girlstop_fj.swf') {
         return 'swf/stuff/nickelodeon_spotlight_girlstop_fj.swf';
     }
@@ -1639,7 +1643,7 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const clothingSwf = (dir, filename) => `${dir.replace(/\/+$/, '')}/${filename}`;
+    const clothingSwf = (filename) => path.basename(filename, '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1650,7 +1654,7 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', clothingSwf(swf, filename))
+        + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
