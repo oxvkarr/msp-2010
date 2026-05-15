@@ -1646,7 +1646,6 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const clothingSwf = (filename) => path.basename(filename, '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1657,7 +1656,7 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', clothingSwf(filename))
+        + node('SWF', swf)
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
@@ -1693,35 +1692,17 @@ const soapRegisterNewUserDataXml = () => {
     const eyeAll = [
         face('Eye', 'EyeId', 1, 'eyes_girlnextdoor_2013/texture', '0x5b351c', 1),
         face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2),
-        face('Eye', 'EyeId', 3, 'eyes_moviestar_2013/texture', '0x5b351c', 1),
-        face('Eye', 'EyeId', 4, 'eyes_theman_2013/texture', '0x2d251c', 2),
-        face('Eye', 'EyeId', 5, 'eyes_prettyperfect_2013/texture', '0x6b3f24', 1),
-        face('Eye', 'EyeId', 6, 'eyes_cateyes_2013/texture', '0x387a4a', 1),
-        face('Eye', 'EyeId', 7, 'eyes_honesthero_2013/texture', '0x3a6eb5', 2),
-        face('Eye', 'EyeId', 8, 'eyes_themanblue_2013/texture', '0x3a6eb5', 2)
+        face('Eye', 'EyeId', 3, 'eyes_moviestar_2013/texture', '0x5b351c', 1)
     ].join('');
     const noseAll = [
         face('Nose', 'NoseId', 2, 'nose_2', '', 1),
         face('Nose', 'NoseId', 4, 'nose_4', '', 2),
-        face('Nose', 'NoseId', 5, 'nose_5', '', 1),
-        face('Nose', 'NoseId', 6, 'nose_6', '', 2),
-        face('Nose', 'NoseId', 7, 'nose_7', '', 1),
-        face('Nose', 'NoseId', 8, 'nose_8', '', 2),
-        face('Nose', 'NoseId', 9, 'nose_8_freckles', '', 1)
+        face('Nose', 'NoseId', 5, 'nose_5', '', 1)
     ].join('');
     const mouthAll = [
         face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1),
         face('Mouth', 'MouthId', 2, 'female_mouth_2', 'skincolor,0xd45a6a', 1),
-        face('Mouth', 'MouthId', 3, 'female_mouth_3', 'skincolor,0xd45a6a', 1),
-        face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2),
-        face('Mouth', 'MouthId', 5, 'male_mouth_2', 'skincolor,0xb64254', 2),
-        face('Mouth', 'MouthId', 6, 'male_mouth_4', 'skincolor,0xb64254', 2)
-    ].join('');
-    const eyeShadowAll = [
-        face('EyeShadow', 'EyeShadowId', 0, 'eyeshadow_femalestar_2013/texture', '0xffffff', 1),
-        face('EyeShadow', 'EyeShadowId', 1, 'eyeshadow_party_2013/texture', '0x333333', 1),
-        face('EyeShadow', 'EyeShadowId', 2, 'eyeshadow_cateyes_2013/texture', '0x111111', 1),
-        face('EyeShadow', 'EyeShadowId', 3, 'eyeshadow_bling_2013/texture', '0xffccff', 1)
+        face('Mouth', 'MouthId', 4, 'male_mouth_1', 'skincolor,0xb64254', 2)
     ].join('');
 
     // Ubrania meskie
@@ -1748,35 +1729,7 @@ const soapRegisterNewUserDataXml = () => {
         rel(1028, '0x6699cc,0x990000')
     ].join('');
 
-    const extraClothes = [
-        cloth(2001, 1, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', '0x6b3f24,0xf2c27b', 1),
-        cloth(2002, 1, 'swf/hair', '2009_hair_girls_Honey_5 (Twilight Alice).swf', '0x2d1b12,0x7c4a2f', 1),
-        cloth(2003, 1, 'swf/hair', 'BFF_2013_GirlHair_2_dg.swf', '0xf7d27e,0xffffff', 1),
-        cloth(2004, 1, 'swf/hair', 'beautyParlour_2012_hairMale_mf.swf', '0x2b1d16,0x8a5a3c', 2),
-        cloth(2005, 1, 'swf/hair', 'april_hair_boys_4.swf', '0x3b2416,0xb87a44', 2),
-        cloth(2006, 1, 'swf/hair', 'beverly_2013_BoyHair_rd.swf', '0x1f1f1f,0x808080', 2),
-
-        cloth(2101, 2, 'swf/tops', 'BFF_2013_GirlsBaseballJacket_ms.swf', '0xff66cc,0xffffff', 1),
-        cloth(2102, 2, 'swf/tops', 'BackStageFashion_2013_GirlsJacket_ms.swf', '0x111111,0xffccff', 1),
-        cloth(2103, 2, 'swf/tops', '66_2013_top1_dg.swf', '0xff3399,0xffffff', 1),
-        cloth(2104, 2, 'swf/tops', 'BFF_2013_BoysBomber_ms.swf', '0x3366cc,0xffffff', 2),
-        cloth(2105, 2, 'swf/tops', 'BeautyParlour_2012_Male_Top_nd.swf', '0x333333,0x999999', 2),
-        cloth(2106, 2, 'swf/tops', '50s_2011_male_tops_2.swf', '0x111111,0xff0000', 2),
-
-        cloth(2201, 3, 'swf/bottoms', 'Honey_bottoms_8.swf', '0xff0066,0xfeffff', 1),
-        cloth(2202, 3, 'swf/bottoms', '70s_2011_female_bottoms_1.swf', '0x663399,0xffffff', 1),
-        cloth(2203, 3, 'swf/bottoms', 'BFF_2013_glittertights_dg.swf', '0x111111,0xffccff', 1),
-        cloth(2204, 3, 'swf/bottoms', 'long trousers_2.swf', '0x222222,0x666666', 2),
-        cloth(2205, 3, 'swf/bottoms', '2009_Honey_bottoms_5_boys (Cowboy).swf', '0x6b3f24,0x333333', 2),
-        cloth(2206, 3, 'swf/bottoms', 'august_bottoms_male_2.swf', '0x1f2b46,0xffffff', 2),
-
-        cloth(2301, 10, 'swf/footwear', 'long boots_1.swf', '0x111111,0xdddddd', 1),
-        cloth(2302, 10, 'swf/footwear', 'shoes_2.swf', '0xff66cc,0xffffff', 1),
-        cloth(2303, 10, 'swf/footwear', 'sneakers_2.swf', '0x3366cc,0xffffff', 2),
-        cloth(2304, 10, 'swf/footwear', 'sneakers_3.swf', '0x111111,0xff0000', 2)
-    ].join('');
-
-    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale + extraClothes;
+    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale;
     const allRels = relsFemale + relsMale;
 
     const maleActor = `<ActorDetails>`
@@ -1827,7 +1780,6 @@ const soapRegisterNewUserDataXml = () => {
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
-        `<eyeShadows>${eyeShadowAll}</eyeShadows>`,
         `<clothes>${allClothes}</clothes>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
