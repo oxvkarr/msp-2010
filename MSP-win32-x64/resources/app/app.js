@@ -19,13 +19,13 @@ const serverPidPath = path.join(__dirname, 'msp-server.pid');
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
 const mongoDbName = process.env.MONGODB_DB || 'msp_2010';
 const mongoStateCollection = process.env.MONGODB_STATE_COLLECTION || 'state';
-const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev';
+const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev/2010';
 const officialMspAssetBaseUrl = (process.env.MSPCDN_ASSET_BASE_URL || 'https://assets.mspcdns.com/msp/103.1.40').replace(/\/+$/, '');
 const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
 const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
 const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
-const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE !== '0';
+const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE === '1';
 const remoteGatewayUrl = (process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
 const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 15000);
 const realMspProxyEnabled = process.env.REAL_MSP_PROXY === '1';
@@ -3703,6 +3703,10 @@ process.on('SIGTERM', () => {
 const preloadSwfAssets = async () => {
     if (process.env.PRELOAD_SWF !== '1') return;
     if (!remoteAssetBaseUrl) return;
+    if (!remoteAssetCacheEnabled) {
+        log('[PRELOAD SWF] pominieto, bo REMOTE_ASSET_CACHE nie jest wlaczone');
+        return;
+    }
 
     const manifestPath = path.join(__dirname, 'main_swf_manifest_critical.json');
 
