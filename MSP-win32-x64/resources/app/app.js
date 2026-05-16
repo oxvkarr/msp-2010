@@ -1153,6 +1153,11 @@ const warmRemoteGateway = () => new Promise((resolve) => {
         resolve(false);
         return;
     }
+    if (process.env.MSP_SKIP_REMOTE_WARMUP === '1') {
+        log(`[REMOTE GATEWAY WARMUP SKIP] ${remoteGatewayUrl}`);
+        resolve(false);
+        return;
+    }
 
     const healthUrl = new URL(`${remoteGatewayUrl}/api/health`);
     const client = healthUrl.protocol === 'https:' ? https : http;
