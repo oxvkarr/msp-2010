@@ -1193,7 +1193,7 @@ const registrationAssetAlias = (cleanPath) => {
         return `swf/${categoryFolderMatch[1]}/${fallbackClothes[categoryFolderMatch[1]]}`;
     }
     if (normalized === 'swf/faceparts/noses/nose_1.swf') {
-        return 'swf/faceparts/noses/nose_2.swf';
+        return 'swf/faceparts/noses/nose_5.swf';
     }
     if (normalized === 'swf/tops/nickelodeon_spotlight_girlstop_fj.swf') {
         return 'swf/stuff/nickelodeon_spotlight_girlstop_fj.swf';
@@ -1698,9 +1698,9 @@ const soapRegisterNewUserDataXml = () => {
         face('Eye', 'EyeId', 3, 'eyes_1', '0x5b351c', 1)
     ].join('');
     const noseAll = [
-        face('Nose', 'NoseId', 2, 'nose_2', '', 1),
+        face('Nose', 'NoseId', 5, 'nose_5', '', 1),
         face('Nose', 'NoseId', 4, 'nose_4', '', 2),
-        face('Nose', 'NoseId', 5, 'nose_5', '', 1)
+        face('Nose', 'NoseId', 6, 'nose_6', '', 1)
     ].join('');
     const mouthAll = [
         face('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', 1),
@@ -1747,7 +1747,8 @@ const soapRegisterNewUserDataXml = () => {
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
-        `<clothes>${allClothes}</clothes>`
+        `<clothes>${allClothes}</clothes>`,
+        `<actorClothesRels>${relsFemale}${relsMale}</actorClothesRels>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
@@ -2371,8 +2372,8 @@ const defaultRegisterActor = (gender, rels) => {
         _SkinColor: '0xffd1b3',
         EyeId: eyeId,
         _EyeId: eyeId,
-        NoseId: isFemale ? 1 : 4,
-        _NoseId: isFemale ? 1 : 4,
+        NoseId: isFemale ? 5 : 4,
+        _NoseId: isFemale ? 5 : 4,
         MouthId: isFemale ? 1 : 4,
         _MouthId: isFemale ? 1 : 4,
         EyeColors: isFemale ? '0x5b351c' : '0x3a6eb5',
@@ -2395,9 +2396,9 @@ const registerNewUserData = () => {
             facePart('Eye', 'EyeId', 3, 'eyes_1', '0x5b351c')
         ],
         noses: [
-            facePart('Nose', 'NoseId', 2, 'nose_2', '', REG_NEW_USER_FEMALE),
+            facePart('Nose', 'NoseId', 5, 'nose_5', '', REG_NEW_USER_FEMALE),
             facePart('Nose', 'NoseId', 4, 'nose_4', '', REG_NEW_USER_MALE),
-            facePart('Nose', 'NoseId', 5, 'nose_5', '', REG_NEW_USER_FEMALE)
+            facePart('Nose', 'NoseId', 6, 'nose_6', '', REG_NEW_USER_FEMALE)
         ],
         mouths: [
             facePart('Mouth', 'MouthId', 1, 'female_mouth_1', 'skincolor,0xd45a6a', REG_NEW_USER_FEMALE),
@@ -3203,6 +3204,7 @@ const credentialsFromArgs = (args = []) => {
 
 const actorFromCreateArgs = (args = [], actorId, name) => {
     const newActor = args[0] && typeof args[0] === 'object' ? args[0] : {};
+    const isMale = newActor.SkinIsMale !== false;
     return {
         actorId,
         name,
@@ -3211,11 +3213,11 @@ const actorFromCreateArgs = (args = [], actorId, name) => {
         diamonds: 100,
         fame: 0,
         fortune: 0,
-        skinSWF: newActor.SkinIsMale === false ? 'femaleskin' : 'maleskin',
+        skinSWF: isMale ? 'maleskin' : 'femaleskin',
         skinColor: newActor.SkinColor || '0xffd1b3',
         eyeId: Number(newActor.EyeId) || 2,
         eyeColors: newActor.EyeColors || '0x5b351c',
-        noseId: Number(newActor.NoseId) || 1,
+        noseId: Number(newActor.NoseId) || (isMale ? 4 : 5),
         mouthId: Number(newActor.MouthId) || 1,
         mouthColors: newActor.MouthColors || '0xd45a6a',
         createdAt: new Date().toISOString()
