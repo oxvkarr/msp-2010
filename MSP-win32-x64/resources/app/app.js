@@ -1648,6 +1648,7 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
+    const clothingSwf = (filename) => path.basename(String(filename || ''), '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1658,14 +1659,12 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', swf)
-        + node('_SWF', swf)
+        + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
         + node('SkinId', skinId)
         + node('Filename', filename)
-        + node('_Filename', filename)
         + node('Scale', 1)
         + node('Vip', false)
         + node('RegNewUser', reg)
@@ -1729,7 +1728,7 @@ const soapRegisterNewUserDataXml = () => {
     ].join('');
 
     // Ubrania zenskie
-    const hairFemale = cloth(1022, 1, 'swf/hair', '2009_hair_girls_Honey_1.swf', '0x5b351c,0x2d1a0e', 1);
+    const hairFemale = cloth(1022, 1, 'swf/hair', '2009_hair_girls_Honey_1.swf', '', 1);
     const hairFemaleAlt = cloth(1021, 1, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', '0xff9900,0x663366', 1);
     const topFemale = cloth(1036, 2, 'swf/tops', 'female_top_2009_1 (Nice Girl).swf', '0x666666,0xFF00CC', 1);
     const topFemaleAlt = cloth(1011, 2, 'swf/tops', 'female_top_2009_2 (Stitches).swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
@@ -1738,7 +1737,7 @@ const soapRegisterNewUserDataXml = () => {
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'january_2011_shoes_female_1.swf', '0x6699cc,0x990000', 1);
     const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'february_shoes_female_1.swf', '0xff66cc,0xffffff', 1);
     const relsFemale = [
-        rel(1022, '0x5b351c,0x2d1a0e', hairFemale),
+        rel(1022, '', hairFemale),
         rel(1036, '0x666666,0xFF00CC', topFemale),
         rel(1054, '0x990099,0xffcc00', bottomFemale),
         rel(1028, '0x6699cc,0x990000', shoesFemale)
@@ -2240,6 +2239,7 @@ const facePart = (className, idField, id, swf, colors = '', regNewUser = REG_NEW
 const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
     const isFemale = gender === 'Female';
     const regNewUser = registerFlagForGender(gender);
+    const swfName = path.basename(String(filename || swf || ''), '.swf');
     const slotType = typed(SLOT_TYPE_ALIAS, {
         SlotTypeId: clothesCategoryId,
         _SlotTypeId: clothesCategoryId
@@ -2258,8 +2258,8 @@ const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
         Id: id,
         ClothesCategoryId: clothesCategoryId,
         _ClothesCategoryId: clothesCategoryId,
-        SWF: swf,
-        _SWF: swf,
+        SWF: swfName,
+        _SWF: swfName,
         Filename: filename,
         _Filename: filename,
         Price: 0,
@@ -2326,7 +2326,7 @@ const withCollectionAliases = (data) => {
 };
 
 const starterClothes = () => [
-    cloth(1022, 'swf/hair', '2009_hair_girls_Honey_1.swf', 1, 'Female', '0x5b351c,0x2d1a0e'),
+    cloth(1022, 'swf/hair', '2009_hair_girls_Honey_1.swf', 1, 'Female'),
     cloth(1021, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', 1, 'Female', '0xff9900,0x663366'),
     cloth(1005, 'swf/hair', '2009_hair_boys_Honey_3.swf', 1, 'Male', '0xcc0000,0xff6600,0xffff00'),
     cloth(1006, 'swf/hair', '2009_hair_boys_Honey_4.swf', 1, 'Male', '0x111111,0x666666'),
