@@ -1657,7 +1657,9 @@ const soapRegisterNewUserDataXml = () => {
         + node('DefaultColors', colors)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
+        + node('ClothId', id)
         + node('ClothesId', id)
+        + node('Id', id)
         + node('Name', '')
         + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
@@ -1769,9 +1771,7 @@ const soapRegisterNewUserDataXml = () => {
         + `<ActorClothesRels>${rels}</ActorClothesRels>`
         + `<_ActorClothesRels>${rels}</_ActorClothesRels>`
         + `<ActorClothesRels2>${rels}</ActorClothesRels2>`
-        + `<_ActorClothesRels2>${rels}</_ActorClothesRels2>`
-        + `<Clothes>${clothes}</Clothes>`
-        + `<_Clothes>${clothes}</_Clothes>`;
+        + `<_ActorClothesRels2>${rels}</_ActorClothesRels2>`;
     const maleActor = actor('Male', 'maleskin', 2, 4, 4, '0x3a6eb5', 'skincolor,0xb64254',
         relsMale, hairMale + topMale + bottomMale + shoesMale);
     const femaleActor = actor('Female', 'femaleskin', 1, 5, 1, '0x5b351c', 'skincolor,0xd45a6a',
