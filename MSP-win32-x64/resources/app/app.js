@@ -1682,6 +1682,8 @@ const soapRegisterNewUserDataXml = () => {
     const rel = (id, colors = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
+        + node('ClothId', id)
+        + node('_ClothId', id)
         + node('ClothesId', id)
         + node('_ClothesId', id)
         + node('Color', colors)
@@ -1743,12 +1745,48 @@ const soapRegisterNewUserDataXml = () => {
     const allClothes = hairFemale + hairFemaleAlt + topFemale + topFemaleAlt + bottomFemale + bottomFemaleAlt
         + shoesFemale + shoesFemaleAlt + hairMale + hairMaleAlt + topMale + topMaleAlt + bottomMale + bottomMaleAlt
         + shoesMale + shoesMaleAlt;
+    const actor = (gender, skinSwf, eyeId, noseId, mouthId, eyeColors, mouthColors, rels, clothes) => `<ActorDetails>`
+        + node('ActorId', 0)
+        + node('_ActorId', 0)
+        + node('Name', '')
+        + node('_Name', '')
+        + node('Gender', gender)
+        + node('_Gender', gender)
+        + node('SkinSWF', skinSwf)
+        + node('_SkinSWF', skinSwf)
+        + node('SkinColor', '0xffd1b3')
+        + node('_SkinColor', '0xffd1b3')
+        + node('EyeId', eyeId)
+        + node('_EyeId', eyeId)
+        + node('NoseId', noseId)
+        + node('_NoseId', noseId)
+        + node('MouthId', mouthId)
+        + node('_MouthId', mouthId)
+        + node('EyeColors', eyeColors)
+        + node('_EyeColors', eyeColors)
+        + node('MouthColors', mouthColors)
+        + node('_MouthColors', mouthColors)
+        + `<ActorClothesRels>${rels}</ActorClothesRels>`
+        + `<_ActorClothesRels>${rels}</_ActorClothesRels>`
+        + `<ActorClothesRels2>${rels}</ActorClothesRels2>`
+        + `<_ActorClothesRels2>${rels}</_ActorClothesRels2>`
+        + `<Clothes>${clothes}</Clothes>`
+        + `<_Clothes>${clothes}</_Clothes>`
+        + `</ActorDetails>`;
+    const maleActor = actor('Male', 'maleskin', 2, 4, 4, '0x3a6eb5', 'skincolor,0xb64254',
+        relsMale, hairMale + topMale + bottomMale + shoesMale);
+    const femaleActor = actor('Female', 'femaleskin', 1, 5, 1, '0x5b351c', 'skincolor,0xd45a6a',
+        relsFemale, hairFemale + topFemale + bottomFemale + shoesFemale);
     const registerData = [
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
         `<clothes>${allClothes}</clothes>`,
-        `<actorClothesRels>${relsFemale}${relsMale}</actorClothesRels>`
+        `<actorClothesRels>${relsFemale}${relsMale}</actorClothesRels>`,
+        `<maleActor>${maleActor}</maleActor>`,
+        `<femaleActor>${femaleActor}</femaleActor>`,
+        `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
+        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
@@ -1812,7 +1850,7 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
 };
 
 const shouldHandleSoapBeforeRemote = (action) => (
-    !useRemoteGateway && /LoadDataForRegisterNewUser/i.test(action)
+    /LoadDataForRegisterNewUser/i.test(action)
 );
 
 app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
