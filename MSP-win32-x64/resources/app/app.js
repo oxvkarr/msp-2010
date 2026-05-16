@@ -1657,7 +1657,12 @@ const soapRegisterNewUserDataXml = () => {
         + node('DefaultColors', colors)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
+        + node('ClothId', id)
+        + node('_ClothId', id)
         + node('ClothesId', id)
+        + node('_ClothesId', id)
+        + node('Id', id)
+        + node('_Id', id)
         + node('Name', '')
         + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
