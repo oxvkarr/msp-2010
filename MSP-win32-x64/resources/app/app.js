@@ -1182,6 +1182,16 @@ const registrationAssetAlias = (cleanPath) => {
     if (duplicatedWardrobeMatch) {
         return `swf/${duplicatedWardrobeMatch[1]}/${duplicatedWardrobeMatch[2]}.swf`;
     }
+    const categoryFolderMatch = normalized.match(/^swf\/(hair|tops|bottoms|footwear)\/swf\/\1\.swf$/);
+    if (categoryFolderMatch) {
+        const fallbackClothes = {
+            hair: 'hair_6.swf',
+            tops: 'top_2_Honey.swf',
+            bottoms: 'Honey_bottoms_10.swf',
+            footwear: 'shoes_1.swf'
+        };
+        return `swf/${categoryFolderMatch[1]}/${fallbackClothes[categoryFolderMatch[1]]}`;
+    }
     if (normalized === 'swf/faceparts/noses/nose_1.swf') {
         return 'swf/faceparts/noses/nose_2.swf';
     }
@@ -1646,6 +1656,7 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
+    const clothingSwf = (filename) => path.basename(String(filename || ''), '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1656,7 +1667,7 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', swf)
+        + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
@@ -1690,9 +1701,9 @@ const soapRegisterNewUserDataXml = () => {
         + `</ActorClothesRel>`;
 
     const eyeAll = [
-        face('Eye', 'EyeId', 1, 'eyes_girlnextdoor_2013/texture', '0x5b351c', 1),
-        face('Eye', 'EyeId', 2, 'eyes_boynextdoor_2013/texture', '0x3a6eb5', 2),
-        face('Eye', 'EyeId', 3, 'eyes_moviestar_2013/texture', '0x5b351c', 1)
+        face('Eye', 'EyeId', 1, 'female_eyes_2', '0x5b351c', 1),
+        face('Eye', 'EyeId', 2, 'male_eye1', '0x3a6eb5', 2),
+        face('Eye', 'EyeId', 3, 'eyes_1', '0x5b351c', 1)
     ].join('');
     const noseAll = [
         face('Nose', 'NoseId', 2, 'nose_2', '', 1),
@@ -1707,9 +1718,13 @@ const soapRegisterNewUserDataXml = () => {
 
     // Ubrania meskie
     const hairMale = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
+    const hairMaleAlt = cloth(1006, 1, 'swf/hair', 'hair_4.swf', '0x111111,0x666666', 2);
     const topMale = cloth(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2);
+    const topMaleAlt = cloth(1055, 2, 'swf/tops', 'camoflage jacket.swf', '0x003300', 2);
     const bottomMale = cloth(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2);
+    const bottomMaleAlt = cloth(1050, 3, 'swf/bottoms', 'Honey_bottoms_6.swf', '0x6666cc,0xffffff', 2);
     const shoesMale = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
+    const shoesMaleAlt = cloth(1129, 10, 'swf/footwear', 'shoes_2.swf', '0x222222,0xffffff', 2);
     const relsMale = [
         rel(1005, '0xcc0000,0xff6600,0xffff00'),
         rel(1057, '0x666666'),
@@ -1719,9 +1734,13 @@ const soapRegisterNewUserDataXml = () => {
 
     // Ubrania zenskie
     const hairFemale = cloth(1022, 1, 'swf/hair', 'hair_6.swf', '', 1);
+    const hairFemaleAlt = cloth(1021, 1, 'swf/hair', 'hair_5.swf', '0xff9900,0x663366', 1);
     const topFemale = cloth(1036, 2, 'swf/tops', 'top_2_Honey.swf', '0x666666,0xFF00CC', 1);
+    const topFemaleAlt = cloth(1011, 2, 'swf/tops', 't-shirt_2.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
     const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x990099,0xffcc00,0xffff33', 1);
+    const bottomFemaleAlt = cloth(1052, 3, 'swf/bottoms', 'Honey_bottoms_8.swf', '0xff0066,0xfeffff', 1);
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
+    const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'shoes_2.swf', '0xff66cc,0xffffff', 1);
     const relsFemale = [
         rel(1022, ''),
         rel(1036, '0x666666,0xFF00CC'),
@@ -1729,7 +1748,9 @@ const soapRegisterNewUserDataXml = () => {
         rel(1028, '0x6699cc,0x990000')
     ].join('');
 
-    const allClothes = hairFemale + topFemale + bottomFemale + shoesFemale + hairMale + topMale + bottomMale + shoesMale;
+    const allClothes = hairFemale + hairFemaleAlt + topFemale + topFemaleAlt + bottomFemale + bottomFemaleAlt
+        + shoesFemale + shoesFemaleAlt + hairMale + hairMaleAlt + topMale + topMaleAlt + bottomMale + bottomMaleAlt
+        + shoesMale + shoesMaleAlt;
     const allRels = relsFemale + relsMale;
 
     const maleActor = `<ActorDetails>`
@@ -2232,6 +2253,7 @@ const facePart = (className, idField, id, swf, colors = '', regNewUser = REG_NEW
 const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
     const isFemale = gender === 'Female';
     const regNewUser = registerFlagForGender(gender);
+    const swfName = path.basename(String(filename || swf || ''), '.swf');
     const slotType = typed(SLOT_TYPE_ALIAS, {
         SlotTypeId: clothesCategoryId,
         _SlotTypeId: clothesCategoryId
@@ -2250,8 +2272,8 @@ const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
         Id: id,
         ClothesCategoryId: clothesCategoryId,
         _ClothesCategoryId: clothesCategoryId,
-        SWF: swf,
-        _SWF: swf,
+        SWF: swfName,
+        _SWF: swfName,
         Filename: filename,
         _Filename: filename,
         Price: 0,
