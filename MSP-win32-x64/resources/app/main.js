@@ -177,8 +177,16 @@ const removeIfExists = (targetPath) => {
 };
 
 const clearLocalCaches = async () => {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData();
+    if (isDebugMode) {
+        debugLog('[CACHE] skipped in debug startup');
+        return;
+    }
+    try {
+        await session.defaultSession.clearCache();
+        await session.defaultSession.clearStorageData();
+    } catch (err) {
+        debugLog(`[CACHE CLEANUP FAIL] Electron session ${err.message}`);
+    }
     removeIfExists(path.join(__dirname, 'asset-cache'));
     removeIfExists(path.join(app.getPath('userData'), 'Cache'));
     removeIfExists(path.join(app.getPath('userData'), 'GPUCache'));
@@ -245,8 +253,14 @@ function redirectExternalMspRequests() {
 }
 
 async function createWindow() {
+    if (isDebugMode) {
+        debugLog('[WINDOW] createWindow start');
+    }
     const accepted = await ensureTermsAccepted();
     if (!accepted) {
+        if (isDebugMode) {
+            debugLog('[WINDOW] terms rejected, quitting');
+        }
         app.quit();
         return;
     }
@@ -292,5 +306,14 @@ async function createWindow() {
     mainWindow.loadURL(`${playBaseUrl}/play.html?${PLAY_PARAMS}${isDebugMode ? '&debug=1' : ''}${useFiddlerProxy ? '&fiddler=1' : ''}`);
 }
 
-app.on('ready', createWindow);
+app.whenReady()
+    .then(() => {
+        if (isDebugMode) {
+            debugLog('[APP READY] creating window');
+        }
+        return createWindow();
+    })
+    .catch((err) => {
+        debugLog(`[WINDOW START FAIL] ${err.stack || err.message}`);
+    });
 app.on('window-all-closed', () => app.quit());
