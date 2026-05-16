@@ -1657,68 +1657,31 @@ const soapRegisterNewUserDataXml = () => {
         + node('DefaultColors', colors)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
-        + node('ClothId', id)
-        + node('_ClothId', id)
         + node('ClothesId', id)
-        + node('_ClothesId', id)
-        + node('Id', id)
-        + node('_Id', id)
         + node('Name', '')
         + node('SWF', clothingSwf(filename))
-        + node('_SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
-        + node('_ClothesCategoryId', cat)
-        + node('SlotTypeId', cat)
-        + node('_SlotTypeId', cat)
         + node('Price', 0)
-        + node('_Price', 0)
         + node('ShopId', 0)
-        + node('_ShopId', 0)
         + node('SkinId', skinId)
-        + node('_SkinId', skinId)
         + node('Filename', filename)
-        + node('_Filename', filename)
         + node('Scale', 1)
-        + node('_Scale', 1)
         + node('Vip', false)
-        + node('_Vip', false)
         + node('RegNewUser', reg)
-        + node('_RegNewUser', reg)
         + node('sortorder', id)
-        + node('_sortorder', id)
         + node('New', false)
-        + node('isNew', false)
-        + node('_isNew', false)
         + node('Discount', 0)
-        + node('_Discount', 0)
         + node('ColorScheme', colors)
-        + node('_ColorScheme', colors)
-        + node('Gender', reg)
-        + node('_Gender', reg)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
-        + node('_ClothesCategoryId', cat)
         + node('Name', '')
         + node('SlotTypeId', cat)
-        + node('_SlotTypeId', cat)
-        + `<SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</SlotType>`
-        + `<_SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</_SlotType>`
+        + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
         + `</ClothesCategory>`
-        + `<_ClothesCategory>`
-        + node('ClothesCategoryId', cat)
-        + node('_ClothesCategoryId', cat)
-        + node('Name', '')
-        + node('SlotTypeId', cat)
-        + node('_SlotTypeId', cat)
-        + `<SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</SlotType>`
-        + `<_SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</_SlotType>`
-        + `</_ClothesCategory>`
         + `</Cloth>`;
     const rel = (id, colors = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
-        + node('ClothId', id)
-        + node('_ClothId', id)
         + node('ClothesId', id)
         + node('_ClothesId', id)
         + node('Color', colors)
@@ -1784,8 +1747,7 @@ const soapRegisterNewUserDataXml = () => {
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
-        `<clothes>${allClothes}</clothes>`,
-        `<actorClothesRels>${relsFemale + relsMale}</actorClothesRels>`
+        `<clothes>${allClothes}</clothes>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
