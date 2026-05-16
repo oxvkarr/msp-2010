@@ -2393,11 +2393,32 @@ const starterClothes = () => [
     cloth(1129, 'swf/footwear', 'Drakulashoes_1 (Gentleman_s Shoes).swf', 10, 'Male')
 ];
 
+const starterClothesById = () => {
+    const byId = new Map();
+    starterClothes().forEach((rel) => byId.set(Number(rel.ClothesId || rel._ClothesId), rel));
+    return byId;
+};
+
+const starterOutfit = (gender = 'Male') => {
+    const ids = String(gender).toLowerCase() === 'female'
+        ? [1022, 1036, 1054, 1028]
+        : [1005, 1057, 1002, 1128];
+    const byId = starterClothesById();
+    return ids.map((id) => byId.get(id)).filter(Boolean);
+};
+
+const actorGender = (actor = {}) => {
+    const explicit = actor.gender || actor.Gender || actor.genderName || actor.GenderName;
+    if (explicit) return /female/i.test(String(explicit)) ? 'Female' : 'Male';
+    const skin = String(actor.skinSWF || actor.SkinSWF || '').toLowerCase();
+    return skin.includes('female') ? 'Female' : 'Male';
+};
+
 const clothItem = (rel) => rel && (rel.Cloth || rel._Cloth || rel);
 
 const clothItems = (rels) => rels.map(clothItem).filter(Boolean);
 
-const loginActorClothesRels = () => starterClothes().slice(0, 6).map((rel) => typed(ACTOR_CLOTHES_REL_ALIAS, {
+const loginActorClothesRels = (gender = 'Male') => starterOutfit(gender).map((rel) => typed(ACTOR_CLOTHES_REL_ALIAS, {
     ActorClothesRelId: rel.ActorClothesRelId,
     _ActorClothesRelId: rel._ActorClothesRelId,
     ClothesId: rel.ClothesId,
@@ -2422,12 +2443,8 @@ const relsBySlot = (rels, slot) => rels.filter((rel) => relSlot(rel) === slot);
 
 const defaultRegisterActor = (gender, rels) => {
     const isFemale = gender === 'Female';
-    const wantedFlag = isFemale ? REG_NEW_USER_FEMALE : REG_NEW_USER_MALE;
-    const actorRels = rels.filter((rel) => {
-        const item = clothItem(rel);
-        const flag = item && Number(item.RegNewUser || item._RegNewUser || item.Gender || item._Gender || REG_NEW_USER_UNISEX);
-        return !item || flag === wantedFlag || flag === REG_NEW_USER_UNISEX;
-    }).slice(0, 5);
+    const outfitIds = new Set(starterOutfit(gender).map((rel) => Number(rel.ClothesId || rel._ClothesId)));
+    const actorRels = rels.filter((rel) => outfitIds.has(Number(rel.ClothesId || rel._ClothesId)));
     const skinSWF = isFemale ? 'femaleskin' : 'maleskin';
     const eyeId = isFemale ? 1 : 2;
     return typed(ACTOR_DETAILS_ALIAS, {
@@ -2500,6 +2517,7 @@ const actorDefaults = (actorRecord = {}) => {
     diamonds: actor.diamonds || actor.Diamonds || 0,
     fame: actor.fame || actor.Fame || 0,
     fortune: actor.fortune || actor.Fortune || 0,
+    gender: actorGender(actor),
     skinSWF: actor.skinSWF || actor.SkinSWF || 'maleskin',
     skinColor: actor.skinColor || actor.SkinColor || '0xffd1b3',
     eyeId: actor.eyeId || actor.EyeId || 2,
@@ -2510,7 +2528,7 @@ const actorDefaults = (actorRecord = {}) => {
 
 const devActorDetails = (actorRecord = null, includeClothDetails = true) => {
     const actor = actorDefaults(actorRecord);
-    const actorClothesRels = includeClothDetails ? starterClothes().slice(0, 6) : loginActorClothesRels();
+    const actorClothesRels = includeClothDetails ? starterOutfit(actor.gender) : loginActorClothesRels(actor.gender);
     return typed(ACTOR_DETAILS_ALIAS, {
     ActorId: actor.actorId,
     Name: actor.name,
@@ -2946,7 +2964,7 @@ const createAccountFromArgs = async (args = []) => {
 
     db.users.push(user);
     db.actors.push(actor);
-    db.inventory[String(actorId)] = starterClothes().slice(0, 6);
+    db.inventory[String(actorId)] = starterOutfit(actorGender(actor));
     await saveDb();
     log(`[ACCOUNT] created username=${cleanUsername} actorId=${actorId} source=${dbSource}`);
     return createNewUserStatus(actor);
@@ -3017,6 +3035,43 @@ const buildClothesCatalog = () => {
         });
 };
 
+const starterCatalogItems = () => clothItems(starterClothes()).map((item) => ({
+    id: Number(item.ClothesId || item.ClothId || item.Id),
+    swf: `swf/${categoryFolderForSlot(Number(item.ClothesCategoryId || item._ClothesCategoryId))}`,
+    filename: item.Filename || item._Filename,
+    slotTypeId: Number(item.ClothesCategoryId || item._ClothesCategoryId),
+    gender: item.GenderName || item._GenderName || (Number(item.Gender || item._Gender) === REG_NEW_USER_FEMALE ? 'Female' : 'Male'),
+    colors: item.ColorScheme || item._ColorScheme || ''
+}));
+
+const categoryFolderForSlot = (slotTypeId) => {
+    if (slotTypeId === 1) return 'hair';
+    if (slotTypeId === 2) return 'tops';
+    if (slotTypeId === 3) return 'bottoms';
+    if (slotTypeId === 10) return 'footwear';
+    return 'stuff';
+};
+
+const shouldReplaceStarterData = (state) => {
+    const catalog = state && state.catalog && Array.isArray(state.catalog.clothes) ? state.catalog.clothes : [];
+    if (catalog.length !== starterClothes().length) return true;
+    return JSON.stringify(catalog.map((item) => item && item.filename).filter(Boolean).sort())
+        !== JSON.stringify(starterCatalogItems().map((item) => item.filename).sort());
+};
+
+const migrateStarterData = (state) => {
+    const next = state;
+    next.catalog = next.catalog || {};
+    if (shouldReplaceStarterData(next)) {
+        next.catalog.clothes = starterCatalogItems();
+    }
+    next.inventory = next.inventory || {};
+    (next.actors || []).forEach((actor) => {
+        next.inventory[String(actor.actorId || actor.ActorId)] = starterOutfit(actorGender(actor));
+    });
+    return next;
+};
+
 const defaultDb = () => ({
     version: 1,
     createdAt: new Date().toISOString(),
@@ -3037,7 +3092,7 @@ const defaultDb = () => ({
         fortune: 10000
     }],
     catalog: {
-        clothes: buildClothesCatalog()
+        clothes: starterCatalogItems()
     },
     inventory: {
         [DEV_ACTOR_ID]: []
@@ -3054,7 +3109,7 @@ const ensureDbShape = (state) => {
     const next = state && typeof state === 'object' ? state : defaultDb();
     next.catalog = next.catalog || {};
     if (!Array.isArray(next.catalog.clothes) || next.catalog.clothes.length === 0) {
-        next.catalog.clothes = buildClothesCatalog();
+        next.catalog.clothes = starterCatalogItems();
     }
     next.users = Array.isArray(next.users) ? next.users : defaultDb().users;
     next.actors = Array.isArray(next.actors) ? next.actors : defaultDb().actors;
@@ -3072,16 +3127,14 @@ const ensureDbShape = (state) => {
         }
         return user;
     });
-    return next;
+    return migrateStarterData(next);
 };
 
 const loadJsonDb = () => {
     try {
         if (fs.existsSync(dbPath)) {
             const existing = ensureDbShape(JSON.parse(fs.readFileSync(dbPath, 'utf8')));
-            if (!Array.isArray(existing.catalog.clothes) || existing.catalog.clothes.length === 0) {
-                fs.writeFileSync(dbPath, JSON.stringify(existing, null, 2));
-            }
+            fs.writeFileSync(dbPath, JSON.stringify(existing, null, 2));
             return existing;
         }
     } catch (err) {
@@ -3128,6 +3181,12 @@ const loadMongoDb = async () => {
             await collection.updateOne({ _id: 'main' }, { $set: { catalog: storedState.catalog } }, { upsert: true });
         }
         const state = ensureDbShape(storedState);
+        await collection.updateOne({ _id: 'main' }, {
+            $set: {
+                catalog: state.catalog,
+                inventory: state.inventory
+            }
+        }, { upsert: true });
         dbSource = 'mongodb';
         log(`[DB] Polaczono z MongoDB: ${mongoDbName}.${mongoStateCollection} users=${state.users.length} actors=${state.actors.length} ubran=${state.catalog.clothes.length}`);
         return state;
@@ -3325,7 +3384,7 @@ const lookDataPayload = () => Buffer.from(JSON.stringify({
     mouthId: 1,
     eyeColors: '0x5b351c',
     mouthColors: '0xd45a6a',
-    clothes: starterClothes().slice(0, 6).map((item) => item.Cloth ? {
+    clothes: starterOutfit('Male').map((item) => item.Cloth ? {
         clothesId: item.ClothesId,
         swf: item.Cloth.SWF,
         color: item.Color
@@ -3334,7 +3393,7 @@ const lookDataPayload = () => Buffer.from(JSON.stringify({
 }), 'utf8');
 
 const randomFrontpageLook = () => {
-    const clothes = starterClothes().slice(0, 6);
+    const clothes = starterOutfit('Male');
     const actor = devActorDetails();
     actor.ActorClothesRels = clothes;
     actor._ActorClothesRels = clothes;
