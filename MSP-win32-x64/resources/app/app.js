@@ -1185,10 +1185,10 @@ const registrationAssetAlias = (cleanPath) => {
     const categoryFolderMatch = normalized.match(/^swf\/(hair|tops|bottoms|footwear)\/swf\/\1\.swf$/);
     if (categoryFolderMatch) {
         const fallbackClothes = {
-            hair: '2009_hair_girls_Honey_1.swf',
-            tops: 'female_top_2009_1 (Nice Girl).swf',
-            bottoms: 'female_bottoms_2009_1 (Loose Jeans).swf',
-            footwear: 'january_2011_shoes_female_1.swf'
+            hair: 'hair_6.swf',
+            tops: 'top_2_Honey.swf',
+            bottoms: 'Honey_bottoms_10.swf',
+            footwear: 'shoes_1.swf'
         };
         return `swf/${categoryFolderMatch[1]}/${fallbackClothes[categoryFolderMatch[1]]}`;
     }
@@ -1679,7 +1679,7 @@ const soapRegisterNewUserDataXml = () => {
         + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
         + `</ClothesCategory>`
         + `</Cloth>`;
-    const rel = (id, colors = '', clothXml = '') => `<ActorClothesRel>`
+    const rel = (id, colors = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
         + node('ClothId', id)
@@ -1692,7 +1692,6 @@ const soapRegisterNewUserDataXml = () => {
         + node('_IsWearing', true)
         + node('x', 0)
         + node('y', 0)
-        + clothXml
         + `</ActorClothesRel>`;
 
     const eyeAll = [
@@ -1712,35 +1711,35 @@ const soapRegisterNewUserDataXml = () => {
     ].join('');
 
     // Ubrania meskie
-    const hairMale = cloth(1005, 1, 'swf/hair', '2009_hair_boys_Honey_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
-    const hairMaleAlt = cloth(1006, 1, 'swf/hair', '2009_hair_boys_Honey_4.swf', '0x111111,0x666666', 2);
-    const topMale = cloth(1057, 2, 'swf/tops', 'honey_male_shirt_1.swf', '0x666666', 2);
-    const topMaleAlt = cloth(1055, 2, 'swf/tops', 'Honey_Male_shirt_2.swf', '0x003300', 2);
-    const bottomMale = cloth(1002, 3, 'swf/bottoms', '2009_Honey_bottoms_1_boys (Soldier).swf', '', 2);
-    const bottomMaleAlt = cloth(1050, 3, 'swf/bottoms', '2009_Honey_bottoms_3_boys.swf', '0x6666cc,0xffffff', 2);
-    const shoesMale = cloth(1128, 10, 'swf/footwear', 'Fall_mens_shoes_1 (Classic Shoes).swf', '0x6699cc,0x990000', 2);
-    const shoesMaleAlt = cloth(1129, 10, 'swf/footwear', 'Drakulashoes_1 (Gentleman_s Shoes).swf', '0x222222,0xffffff', 2);
+    const hairMale = cloth(1005, 1, 'swf/hair', 'hair_3.swf', '0xcc0000,0xff6600,0xffff00', 2);
+    const hairMaleAlt = cloth(1006, 1, 'swf/hair', 'hair_4.swf', '0x111111,0x666666', 2);
+    const topMale = cloth(1057, 2, 'swf/tops', 'body armor top.swf', '0x666666', 2);
+    const topMaleAlt = cloth(1055, 2, 'swf/tops', 'top_2_Honey.swf', '0x003300', 2);
+    const bottomMale = cloth(1002, 3, 'swf/bottoms', 'long trousers_1.swf', '', 2);
+    const bottomMaleAlt = cloth(1050, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x6666cc,0xffffff', 2);
+    const shoesMale = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
+    const shoesMaleAlt = cloth(1129, 10, 'swf/footwear', 'shoes_male.swf', '0x222222,0xffffff', 2);
     const relsMale = [
-        rel(1005, '0xcc0000,0xff6600,0xffff00', hairMale),
-        rel(1057, '0x666666', topMale),
-        rel(1002, '', bottomMale),
-        rel(1128, '0x6699cc,0x990000', shoesMale)
+        rel(1005, '0xcc0000,0xff6600,0xffff00'),
+        rel(1057, '0x666666'),
+        rel(1002, ''),
+        rel(1128, '0x6699cc,0x990000')
     ].join('');
 
     // Ubrania zenskie
-    const hairFemale = cloth(1022, 1, 'swf/hair', '2009_hair_girls_Honey_1.swf', '', 1);
-    const hairFemaleAlt = cloth(1021, 1, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', '0xff9900,0x663366', 1);
-    const topFemale = cloth(1036, 2, 'swf/tops', 'female_top_2009_1 (Nice Girl).swf', '0x666666,0xFF00CC', 1);
-    const topFemaleAlt = cloth(1011, 2, 'swf/tops', 'female_top_2009_2 (Stitches).swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
-    const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'female_bottoms_2009_1 (Loose Jeans).swf', '0x990099,0xffcc00,0xffff33', 1);
-    const bottomFemaleAlt = cloth(1052, 3, 'swf/bottoms', 'female_bottoms_2009_2 (Sparkles).swf', '0xff0066,0xfeffff', 1);
-    const shoesFemale = cloth(1028, 10, 'swf/footwear', 'january_2011_shoes_female_1.swf', '0x6699cc,0x990000', 1);
-    const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'february_shoes_female_1.swf', '0xff66cc,0xffffff', 1);
+    const hairFemale = cloth(1022, 1, 'swf/hair', 'hair_6.swf', '', 1);
+    const hairFemaleAlt = cloth(1021, 1, 'swf/hair', 'hair_2.swf', '0xff9900,0x663366', 1);
+    const topFemale = cloth(1036, 2, 'swf/tops', 'top_2_Honey.swf', '0x666666,0xFF00CC', 1);
+    const topFemaleAlt = cloth(1011, 2, 'swf/tops', 't-shirt_2.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
+    const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x990099,0xffcc00,0xffff33', 1);
+    const bottomFemaleAlt = cloth(1052, 3, 'swf/bottoms', 'Honey_bottoms_9.swf', '0xff0066,0xfeffff', 1);
+    const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
+    const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'shoes.swf', '0xff66cc,0xffffff', 1);
     const relsFemale = [
-        rel(1022, '', hairFemale),
-        rel(1036, '0x666666,0xFF00CC', topFemale),
-        rel(1054, '0x990099,0xffcc00', bottomFemale),
-        rel(1028, '0x6699cc,0x990000', shoesFemale)
+        rel(1022, ''),
+        rel(1036, '0x666666,0xFF00CC'),
+        rel(1054, '0x990099,0xffcc00'),
+        rel(1028, '0x6699cc,0x990000')
     ].join('');
 
     const allClothes = hairFemale + hairFemaleAlt + topFemale + topFemaleAlt + bottomFemale + bottomFemaleAlt
@@ -2324,22 +2323,22 @@ const withCollectionAliases = (data) => {
 };
 
 const starterClothes = () => [
-    cloth(1022, 'swf/hair', '2009_hair_girls_Honey_1.swf', 1, 'Female'),
-    cloth(1021, 'swf/hair', '2009_hair_girls_Honey_2 (Japanese Buns).swf', 1, 'Female', '0xff9900,0x663366'),
-    cloth(1005, 'swf/hair', '2009_hair_boys_Honey_3.swf', 1, 'Male', '0xcc0000,0xff6600,0xffff00'),
-    cloth(1006, 'swf/hair', '2009_hair_boys_Honey_4.swf', 1, 'Male', '0x111111,0x666666'),
-    cloth(1036, 'swf/tops', 'female_top_2009_1 (Nice Girl).swf', 2, 'Female', '0x666666,0xFF00CC'),
-    cloth(1011, 'swf/tops', 'female_top_2009_2 (Stitches).swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
-    cloth(1057, 'swf/tops', 'honey_male_shirt_1.swf', 2, 'Male', '0x666666'),
-    cloth(1055, 'swf/tops', 'Honey_Male_shirt_2.swf', 2, 'Male', '0x003300'),
-    cloth(1054, 'swf/bottoms', 'female_bottoms_2009_1 (Loose Jeans).swf', 3, 'Female', '0x990099,0xffcc00,0xffff33'),
-    cloth(1052, 'swf/bottoms', 'female_bottoms_2009_2 (Sparkles).swf', 3, 'Female', '0xff0066,0xfeffff'),
-    cloth(1002, 'swf/bottoms', '2009_Honey_bottoms_1_boys (Soldier).swf', 3, 'Male'),
-    cloth(1050, 'swf/bottoms', '2009_Honey_bottoms_3_boys.swf', 3, 'Male', '0x6666cc,0xffffff'),
-    cloth(1028, 'swf/footwear', 'january_2011_shoes_female_1.swf', 10, 'Female', '0x6699cc,0x990000'),
-    cloth(1029, 'swf/footwear', 'february_shoes_female_1.swf', 10, 'Female'),
-    cloth(1128, 'swf/footwear', 'Fall_mens_shoes_1 (Classic Shoes).swf', 10, 'Male', '0x6699cc,0x990000'),
-    cloth(1129, 'swf/footwear', 'Drakulashoes_1 (Gentleman_s Shoes).swf', 10, 'Male')
+    cloth(1022, 'swf/hair', 'hair_6.swf', 1, 'Female'),
+    cloth(1021, 'swf/hair', 'hair_2.swf', 1, 'Female', '0xff9900,0x663366'),
+    cloth(1005, 'swf/hair', 'hair_3.swf', 1, 'Male', '0xcc0000,0xff6600,0xffff00'),
+    cloth(1006, 'swf/hair', 'hair_4.swf', 1, 'Male', '0x111111,0x666666'),
+    cloth(1036, 'swf/tops', 'top_2_Honey.swf', 2, 'Female', '0x666666,0xFF00CC'),
+    cloth(1011, 'swf/tops', 't-shirt_2.swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
+    cloth(1057, 'swf/tops', 'body armor top.swf', 2, 'Male', '0x666666'),
+    cloth(1055, 'swf/tops', 'top_2_Honey.swf', 2, 'Male', '0x003300'),
+    cloth(1054, 'swf/bottoms', 'Honey_bottoms_10.swf', 3, 'Female', '0x990099,0xffcc00,0xffff33'),
+    cloth(1052, 'swf/bottoms', 'Honey_bottoms_9.swf', 3, 'Female', '0xff0066,0xfeffff'),
+    cloth(1002, 'swf/bottoms', 'long trousers_1.swf', 3, 'Male'),
+    cloth(1050, 'swf/bottoms', 'Honey_bottoms_10.swf', 3, 'Male', '0x6666cc,0xffffff'),
+    cloth(1028, 'swf/footwear', 'shoes_1.swf', 10, 'Female', '0x6699cc,0x990000'),
+    cloth(1029, 'swf/footwear', 'shoes.swf', 10, 'Female'),
+    cloth(1128, 'swf/footwear', 'shoes_1.swf', 10, 'Male', '0x6699cc,0x990000'),
+    cloth(1129, 'swf/footwear', 'shoes_male.swf', 10, 'Male')
 ];
 
 const starterClothesById = () => {
