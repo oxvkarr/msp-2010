@@ -1851,7 +1851,7 @@ const handleSoapCompatibilityRequest = (req, res, serviceLabel = 'SOAP') => {
 };
 
 const shouldHandleSoapBeforeRemote = (action) => (
-    /LoadDataForRegisterNewUser/i.test(action)
+    /LoadDataForRegisterNewUser|LoadActorWithCurrentClothesBasicDataOnly/i.test(action)
 );
 
 app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
@@ -2468,11 +2468,11 @@ const actorDefaults = (actorRecord = {}) => {
     diamonds: actor.diamonds || actor.Diamonds || 0,
     fame: actor.fame || actor.Fame || 0,
     fortune: actor.fortune || actor.Fortune || 0,
-    gender: actorGender(actor),
-    skinSWF: actor.skinSWF || actor.SkinSWF || 'maleskin',
+    gender: actorGender(actor.skinSWF || actor.SkinSWF ? actor : { SkinSWF: 'femaleskin' }),
+    skinSWF: actor.skinSWF || actor.SkinSWF || 'femaleskin',
     skinColor: actor.skinColor || actor.SkinColor || '0xffd1b3',
-    eyeId: actor.eyeId || actor.EyeId || 2,
-    noseId: actor.noseId || actor.NoseId || 1,
+    eyeId: actor.eyeId || actor.EyeId || 1,
+    noseId: actor.noseId || actor.NoseId || 5,
     mouthId: actor.mouthId || actor.MouthId || 1
 };
 };
