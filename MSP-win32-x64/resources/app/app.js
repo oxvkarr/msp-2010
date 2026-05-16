@@ -1648,7 +1648,6 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const clothingSwf = (filename) => path.basename(String(filename || ''), '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1659,7 +1658,7 @@ const soapRegisterNewUserDataXml = () => {
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
         + node('ClothesId', id)
         + node('Name', '')
-        + node('SWF', clothingSwf(filename))
+        + node('SWF', swf)
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
         + node('ShopId', 0)
@@ -2236,7 +2235,6 @@ const facePart = (className, idField, id, swf, colors = '', regNewUser = REG_NEW
 const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
     const isFemale = gender === 'Female';
     const regNewUser = registerFlagForGender(gender);
-    const swfName = path.basename(String(filename || swf || ''), '.swf');
     const slotType = typed(SLOT_TYPE_ALIAS, {
         SlotTypeId: clothesCategoryId,
         _SlotTypeId: clothesCategoryId
@@ -2255,8 +2253,8 @@ const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
         Id: id,
         ClothesCategoryId: clothesCategoryId,
         _ClothesCategoryId: clothesCategoryId,
-        SWF: swfName,
-        _SWF: swfName,
+        SWF: swf,
+        _SWF: swf,
         Filename: filename,
         _Filename: filename,
         Price: 0,
