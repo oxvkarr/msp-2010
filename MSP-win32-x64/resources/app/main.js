@@ -153,7 +153,11 @@ const debugLog = (message) => {
 const removeIfExists = (targetPath) => {
     try {
         if (fs.existsSync(targetPath)) {
-            fs.rmSync(targetPath, { recursive: true, force: true });
+            if (typeof fs.rmSync === 'function') {
+                fs.rmSync(targetPath, { recursive: true, force: true });
+            } else {
+                fs.rmdirSync(targetPath, { recursive: true });
+            }
         }
     } catch (err) {
         if (isDebugMode) {
