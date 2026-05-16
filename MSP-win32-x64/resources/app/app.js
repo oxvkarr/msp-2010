@@ -1775,18 +1775,21 @@ const soapRegisterNewUserDataXml = () => {
         relsMale, hairMale + topMale + bottomMale + shoesMale);
     const femaleActor = actor('Female', 'femaleskin', 1, 5, 1, '0x5b351c', 'skincolor,0xd45a6a',
         relsFemale, hairFemale + topFemale + bottomFemale + shoesFemale);
+    const maleActorWrapped = `<ActorDetails>${maleActor}</ActorDetails>`;
+    const femaleActorWrapped = `<ActorDetails>${femaleActor}</ActorDetails>`;
+    const allRels = relsFemale + relsMale;
     const registerData = [
-        `<eyes>${eyeAll}</eyes>`,
-        `<noses>${noseAll}</noses>`,
-        `<mouths>${mouthAll}</mouths>`,
-        `<clothes>${allClothes}</clothes>`,
-        `<actorClothesRels>${relsFemale}${relsMale}</actorClothesRels>`,
-        `<maleActor>${maleActor}</maleActor>`,
-        `<femaleActor>${femaleActor}</femaleActor>`,
-        `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
-        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
+        `<Eyes>${eyeAll}</Eyes>`, `<eyes>${eyeAll}</eyes>`, `<_eyes>${eyeAll}</_eyes>`,
+        `<Noses>${noseAll}</Noses>`, `<noses>${noseAll}</noses>`, `<_noses>${noseAll}</_noses>`,
+        `<Mouths>${mouthAll}</Mouths>`, `<mouths>${mouthAll}</mouths>`, `<_mouths>${mouthAll}</_mouths>`,
+        `<Clothes>${allClothes}</Clothes>`, `<clothes>${allClothes}</clothes>`, `<_clothes>${allClothes}</_clothes>`,
+        `<ActorClothesRels>${allRels}</ActorClothesRels>`, `<actorClothesRels>${allRels}</actorClothesRels>`, `<_actorClothesRels>${allRels}</_actorClothesRels>`,
+        `<MaleActor>${maleActorWrapped}</MaleActor>`, `<maleActor>${maleActor}</maleActor>`, `<_maleActor>${maleActor}</_maleActor>`,
+        `<FemaleActor>${femaleActorWrapped}</FemaleActor>`, `<femaleActor>${femaleActor}</femaleActor>`, `<_femaleActor>${femaleActor}</_femaleActor>`,
+        `<DefaultMaleActor>${maleActorWrapped}</DefaultMaleActor>`, `<defaultMaleActor>${maleActor}</defaultMaleActor>`, `<_defaultMaleActor>${maleActor}</_defaultMaleActor>`,
+        `<DefaultFemaleActor>${femaleActorWrapped}</DefaultFemaleActor>`, `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`, `<_defaultFemaleActor>${femaleActor}</_defaultFemaleActor>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}<RegisterNewUserData>${registerData}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
