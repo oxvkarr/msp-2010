@@ -1714,7 +1714,7 @@ const soapRegisterNewUserDataXml = () => {
         + `<_SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</_SlotType>`
         + `</_ClothesCategory>`
         + `</Cloth>`;
-    const rel = (id, colors = '', clothXml = '') => `<ActorClothesRel>`
+    const rel = (id, colors = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
         + node('ClothId', id)
@@ -1727,8 +1727,6 @@ const soapRegisterNewUserDataXml = () => {
         + node('_IsWearing', true)
         + node('x', 0)
         + node('y', 0)
-        + clothXml
-        + clothXml.replace(/^<Cloth>/, '<_Cloth>').replace(/<\/Cloth>$/, '</_Cloth>')
         + `</ActorClothesRel>`;
 
     const eyeAll = [
@@ -1757,10 +1755,10 @@ const soapRegisterNewUserDataXml = () => {
     const shoesMale = cloth(1128, 10, 'swf/footwear', 'Fall_mens_shoes_1 (Classic Shoes).swf', '0x6699cc,0x990000', 2);
     const shoesMaleAlt = cloth(1129, 10, 'swf/footwear', 'Drakulashoes_1 (Gentleman_s Shoes).swf', '0x222222,0xffffff', 2);
     const relsMale = [
-        rel(1005, '0xcc0000,0xff6600,0xffff00', hairMale),
-        rel(1057, '0x666666', topMale),
-        rel(1002, '', bottomMale),
-        rel(1128, '0x6699cc,0x990000', shoesMale)
+        rel(1005, '0xcc0000,0xff6600,0xffff00'),
+        rel(1057, '0x666666'),
+        rel(1002, ''),
+        rel(1128, '0x6699cc,0x990000')
     ].join('');
 
     // Ubrania zenskie
@@ -1773,70 +1771,21 @@ const soapRegisterNewUserDataXml = () => {
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'january_2011_shoes_female_1.swf', '0x6699cc,0x990000', 1);
     const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'february_shoes_female_1.swf', '0xff66cc,0xffffff', 1);
     const relsFemale = [
-        rel(1022, '', hairFemale),
-        rel(1036, '0x666666,0xFF00CC', topFemale),
-        rel(1054, '0x990099,0xffcc00', bottomFemale),
-        rel(1028, '0x6699cc,0x990000', shoesFemale)
+        rel(1022, ''),
+        rel(1036, '0x666666,0xFF00CC'),
+        rel(1054, '0x990099,0xffcc00'),
+        rel(1028, '0x6699cc,0x990000')
     ].join('');
 
     const allClothes = hairFemale + hairFemaleAlt + topFemale + topFemaleAlt + bottomFemale + bottomFemaleAlt
         + shoesFemale + shoesFemaleAlt + hairMale + hairMaleAlt + topMale + topMaleAlt + bottomMale + bottomMaleAlt
         + shoesMale + shoesMaleAlt;
-    const allRels = relsFemale + relsMale;
-
-    const maleActor = `<ActorDetails>`
-        + node('ActorId', 0)
-        + node('_ActorId', 0)
-        + node('Name', '')
-        + node('_Name', '')
-        + node('Gender', 'Male')
-        + node('_Gender', 'Male')
-        + node('SkinSWF', 'maleskin')
-        + node('_SkinSWF', 'maleskin')
-        + node('SkinColor', '0xffd1b3')
-        + node('_SkinColor', '0xffd1b3')
-        + node('EyeId', 2)
-        + node('NoseId', 4)
-        + node('MouthId', 4)
-        + node('EyeColors', '0x3a6eb5')
-        + node('MouthColors', 'skincolor,0xb64254')
-        + `<ActorClothesRels>${relsMale}</ActorClothesRels>`
-        + `<_ActorClothesRels>${relsMale}</_ActorClothesRels>`
-        + `<Clothes>${hairMale}${topMale}${bottomMale}${shoesMale}</Clothes>`
-        + `<_Clothes>${hairMale}${topMale}${bottomMale}${shoesMale}</_Clothes>`
-        + `</ActorDetails>`;
-
-    const femaleActor = `<ActorDetails>`
-        + node('ActorId', 0)
-        + node('_ActorId', 0)
-        + node('Name', '')
-        + node('_Name', '')
-        + node('Gender', 'Female')
-        + node('_Gender', 'Female')
-        + node('SkinSWF', 'femaleskin')
-        + node('_SkinSWF', 'femaleskin')
-        + node('SkinColor', '0xffd1b3')
-        + node('_SkinColor', '0xffd1b3')
-        + node('EyeId', 1)
-        + node('NoseId', 2)
-        + node('MouthId', 1)
-        + node('EyeColors', '0x5b351c')
-        + node('MouthColors', 'skincolor,0xd45a6a')
-        + `<ActorClothesRels>${relsFemale}</ActorClothesRels>`
-        + `<_ActorClothesRels>${relsFemale}</_ActorClothesRels>`
-        + `<Clothes>${hairFemale}${topFemale}${bottomFemale}${shoesFemale}</Clothes>`
-        + `<_Clothes>${hairFemale}${topFemale}${bottomFemale}${shoesFemale}</_Clothes>`
-        + `</ActorDetails>`;
-
     const registerData = [
         `<eyes>${eyeAll}</eyes>`,
         `<noses>${noseAll}</noses>`,
         `<mouths>${mouthAll}</mouths>`,
         `<clothes>${allClothes}</clothes>`,
-        `<maleActor>${maleActor}</maleActor>`,
-        `<femaleActor>${femaleActor}</femaleActor>`,
-        `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
-        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
+        `<actorClothesRels>${relsFemale + relsMale}</actorClothesRels>`
     ].join('');
     const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
