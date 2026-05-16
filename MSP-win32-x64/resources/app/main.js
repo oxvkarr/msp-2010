@@ -91,6 +91,16 @@ const writeSettings = (settings) => {
 const ensureTermsAccepted = async () => {
     const settings = readSettings();
     if (settings.termsAcceptedVersion === TERMS_VERSION) return true;
+    if (isDebugMode || process.env.MSP_ACCEPT_TERMS === '1') {
+        writeSettings(Object.assign({}, settings, {
+            termsAcceptedVersion: TERMS_VERSION,
+            termsAcceptedAt: new Date().toISOString()
+        }));
+        if (isDebugMode) {
+            debugLog('[TERMS] auto accepted for debug');
+        }
+        return true;
+    }
 
     const result = await dialog.showMessageBox({
         type: 'info',
