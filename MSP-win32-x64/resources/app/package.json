@@ -6,6 +6,8 @@
     "start": "electron .",
     "start-server": "node app.js --server",
     "start:debug": "electron . --debug",
+    "MPS.debug": "electron . --debug",
+    "MSP.debug": "electron . --debug",
     "dist": "electron-builder --win",
     "dist:portable": "electron-builder --win portable",
     "dist:folder": "electron-builder --win dir",
