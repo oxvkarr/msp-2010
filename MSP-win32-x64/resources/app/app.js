@@ -1656,32 +1656,63 @@ const soapRegisterNewUserDataXml = () => {
     const clothingSwf = (filename) => path.basename(String(filename || ''), '.swf');
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
+        + node(`_${idName}`, id)
+        + node('Id', id)
         + node('Name', '')
         + node('SWF', swf)
+        + node('_SWF', swf)
         + node('SkinId', skinId)
         + node('DefaultColors', colors)
+        + node('_DefaultColors', colors)
+        + node('Price', 0)
+        + node('Vip', false)
+        + node('sortorder', id)
         + `</${tag}>`;
     const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
+        + node('ClothId', id)
+        + node('_ClothId', id)
         + node('ClothesId', id)
+        + node('_ClothesId', id)
+        + node('Id', id)
         + node('Name', '')
         + node('SWF', clothingSwf(filename))
+        + node('_SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
+        + node('_ClothesCategoryId', cat)
         + node('Price', 0)
+        + node('_Price', 0)
         + node('ShopId', 0)
+        + node('_ShopId', 0)
         + node('SkinId', skinId)
+        + node('_SkinId', skinId)
         + node('Filename', filename)
+        + node('_Filename', filename)
         + node('Scale', 1)
+        + node('_Scale', 1)
         + node('Vip', false)
+        + node('_Vip', false)
         + node('RegNewUser', reg)
+        + node('_RegNewUser', reg)
+        + node('Gender', reg)
+        + node('_Gender', reg)
         + node('sortorder', id)
+        + node('_sortorder', id)
         + node('New', false)
+        + node('isNew', false)
+        + node('_isNew', false)
         + node('Discount', 0)
+        + node('_Discount', 0)
+        + node('DiamondsPrice', 0)
+        + node('_DiamondsPrice', 0)
         + node('ColorScheme', colors)
+        + node('_ColorScheme', colors)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
+        + node('_ClothesCategoryId', cat)
         + node('Name', '')
         + node('SlotTypeId', cat)
-        + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
+        + node('_SlotTypeId', cat)
+        + `<SlotType>${node('SlotTypeId', cat)}${node('_SlotTypeId', cat)}${node('Name', '')}</SlotType>`
         + `</ClothesCategory>`
         + `</Cloth>`;
     const rel = (id, colors = '') => `<ActorClothesRel>`
@@ -1784,23 +1815,35 @@ const soapRegisterNewUserDataXml = () => {
     const femaleActorWrapped = `<ActorDetails>${femaleActor}</ActorDetails>`;
     const allRels = relsFemale + relsMale;
     const registerData = [
+        `<Eyes>${eyeAll}</Eyes>`,
         `<eyes>${eyeAll}</eyes>`,
+        `<_eyes>${eyeAll}</_eyes>`,
+        `<Noses>${noseAll}</Noses>`,
         `<noses>${noseAll}</noses>`,
+        `<_noses>${noseAll}</_noses>`,
+        `<Mouths>${mouthAll}</Mouths>`,
         `<mouths>${mouthAll}</mouths>`,
+        `<_mouths>${mouthAll}</_mouths>`,
         `<Clothes>${allClothes}</Clothes>`,
         `<clothes>${allClothes}</clothes>`,
+        `<_clothes>${allClothes}</_clothes>`,
         `<ActorClothesRels>${allRels}</ActorClothesRels>`,
         `<actorClothesRels>${allRels}</actorClothesRels>`,
+        `<_actorClothesRels>${allRels}</_actorClothesRels>`,
         `<MaleActor>${maleActorWrapped}</MaleActor>`,
         `<maleActor>${maleActor}</maleActor>`,
+        `<_maleActor>${maleActor}</_maleActor>`,
         `<FemaleActor>${femaleActorWrapped}</FemaleActor>`,
         `<femaleActor>${femaleActor}</femaleActor>`,
+        `<_femaleActor>${femaleActor}</_femaleActor>`,
         `<DefaultMaleActor>${maleActorWrapped}</DefaultMaleActor>`,
         `<defaultMaleActor>${maleActor}</defaultMaleActor>`,
+        `<_defaultMaleActor>${maleActor}</_defaultMaleActor>`,
         `<DefaultFemaleActor>${femaleActorWrapped}</DefaultFemaleActor>`,
-        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`
+        `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`,
+        `<_defaultFemaleActor>${femaleActor}</_defaultFemaleActor>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}<RegisterNewUserData>${registerData}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
