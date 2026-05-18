@@ -1843,7 +1843,7 @@ const soapRegisterNewUserDataXml = () => {
         `<defaultFemaleActor>${femaleActor}</defaultFemaleActor>`,
         `<_defaultFemaleActor>${femaleActor}</_defaultFemaleActor>`
     ].join('');
-    const xml = `<LoadDataForRegisterNewUserResult>${registerData}<RegisterNewUserData>${registerData}</RegisterNewUserData></LoadDataForRegisterNewUserResult>`;
+    const xml = `<LoadDataForRegisterNewUserResult>${registerData}</LoadDataForRegisterNewUserResult>`;
     log(`[SOAP REGISTER ALIAS] responseBytes=${Buffer.byteLength(xml, 'utf8')}`);
     return xml;
 };
