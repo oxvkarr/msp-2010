@@ -1215,8 +1215,14 @@ const registrationAssetAlias = (cleanPath) => {
     if (normalized === 'swf/bottoms/nickelodeon_2015_maletopred_mf.swf') {
         return 'swf/stuff/nickelodeon_2015_maletopred_mf.swf';
     }
+    if (normalized === 'swf/hair/hair_2.swf') {
+        return 'swf/hair/hair_6.swf';
+    }
     if (normalized === 'swf/hair/hair_male.swf') {
         return 'swf/hair/hair_3.swf';
+    }
+    if (normalized === 'swf/tops/t-shirt_2.swf') {
+        return 'swf/tops/top_2_Honey.swf';
     }
     if (normalized === 'swf/footwear/shoes_male.swf') {
         return 'swf/footwear/shoes_1.swf';
@@ -1728,9 +1734,9 @@ const soapRegisterNewUserDataXml = () => {
 
     // Ubrania zenskie
     const hairFemale = cloth(1022, 1, 'swf/hair', 'hair_6.swf', '', 1);
-    const hairFemaleAlt = cloth(1021, 1, 'swf/hair', 'hair_2.swf', '0xff9900,0x663366', 1);
+    const hairFemaleAlt = cloth(1021, 1, 'swf/hair', 'hair_6.swf', '0xff9900,0x663366', 1);
     const topFemale = cloth(1036, 2, 'swf/tops', 'top_2_Honey.swf', '0x666666,0xFF00CC', 1);
-    const topFemaleAlt = cloth(1011, 2, 'swf/tops', 't-shirt_2.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
+    const topFemaleAlt = cloth(1011, 2, 'swf/tops', 'top_2_Honey.swf', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc', 1);
     const bottomFemale = cloth(1054, 3, 'swf/bottoms', 'Honey_bottoms_10.swf', '0x990099,0xffcc00,0xffff33', 1);
     const bottomFemaleAlt = cloth(1052, 3, 'swf/bottoms', 'Honey_bottoms_9.swf', '0xff0066,0xfeffff', 1);
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
@@ -2327,11 +2333,11 @@ const withCollectionAliases = (data) => {
 
 const starterClothes = () => [
     cloth(1022, 'swf/hair', 'hair_6.swf', 1, 'Female'),
-    cloth(1021, 'swf/hair', 'hair_2.swf', 1, 'Female', '0xff9900,0x663366'),
+    cloth(1021, 'swf/hair', 'hair_6.swf', 1, 'Female', '0xff9900,0x663366'),
     cloth(1005, 'swf/hair', 'hair_3.swf', 1, 'Male', '0xcc0000,0xff6600,0xffff00'),
     cloth(1006, 'swf/hair', 'hair_4.swf', 1, 'Male', '0x111111,0x666666'),
     cloth(1036, 'swf/tops', 'top_2_Honey.swf', 2, 'Female', '0x666666,0xFF00CC'),
-    cloth(1011, 'swf/tops', 't-shirt_2.swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
+    cloth(1011, 'swf/tops', 'top_2_Honey.swf', 2, 'Female', '0xff66cc,0x99ffcc,0x99ffcc,0xff66cc'),
     cloth(1057, 'swf/tops', 'body armor top.swf', 2, 'Male', '0x666666'),
     cloth(1055, 'swf/tops', 'top_2_Honey.swf', 2, 'Male', '0x003300'),
     cloth(1054, 'swf/bottoms', 'Honey_bottoms_10.swf', 3, 'Female', '0x990099,0xffcc00,0xffff33'),
