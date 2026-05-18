@@ -1215,17 +1215,11 @@ const registrationAssetAlias = (cleanPath) => {
     if (normalized === 'swf/bottoms/nickelodeon_2015_maletopred_mf.swf') {
         return 'swf/stuff/nickelodeon_2015_maletopred_mf.swf';
     }
-    if (normalized === 'swf/hair/hair_2.swf') {
-        return 'swf/world/shopicons/hair.swf';
-    }
     if (normalized === 'swf/hair/hair_male.swf') {
-        return 'swf/world/shopicons/hair_male.swf';
-    }
-    if (normalized === 'swf/footwear/shoes.swf') {
-        return 'swf/world/shopicons/shoes.swf';
+        return 'swf/hair/hair_3.swf';
     }
     if (normalized === 'swf/footwear/shoes_male.swf') {
-        return 'swf/world/shopicons/shoes_male.swf';
+        return 'swf/footwear/shoes_1.swf';
     }
     return null;
 };
@@ -1684,7 +1678,7 @@ const soapRegisterNewUserDataXml = () => {
         + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
         + `</ClothesCategory>`
         + `</Cloth>`;
-    const rel = (id, colors = '') => `<ActorClothesRel>`
+    const rel = (id, colors = '', clothXml = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
         + node('ClothId', id)
@@ -1697,6 +1691,7 @@ const soapRegisterNewUserDataXml = () => {
         + node('_IsWearing', true)
         + node('x', 0)
         + node('y', 0)
+        + clothXml
         + `</ActorClothesRel>`;
 
     const eyeAll = [
@@ -1725,10 +1720,10 @@ const soapRegisterNewUserDataXml = () => {
     const shoesMale = cloth(1128, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 2);
     const shoesMaleAlt = cloth(1129, 10, 'swf/footwear', 'shoes_male.swf', '0x222222,0xffffff', 2);
     const relsMale = [
-        rel(1005, '0xcc0000,0xff6600,0xffff00'),
-        rel(1057, '0x666666'),
-        rel(1002, ''),
-        rel(1128, '0x6699cc,0x990000')
+        rel(1005, '0xcc0000,0xff6600,0xffff00', hairMale),
+        rel(1057, '0x666666', topMale),
+        rel(1002, '', bottomMale),
+        rel(1128, '0x6699cc,0x990000', shoesMale)
     ].join('');
 
     // Ubrania zenskie
@@ -1741,10 +1736,10 @@ const soapRegisterNewUserDataXml = () => {
     const shoesFemale = cloth(1028, 10, 'swf/footwear', 'shoes_1.swf', '0x6699cc,0x990000', 1);
     const shoesFemaleAlt = cloth(1029, 10, 'swf/footwear', 'shoes.swf', '0xff66cc,0xffffff', 1);
     const relsFemale = [
-        rel(1022, ''),
-        rel(1036, '0x666666,0xFF00CC'),
-        rel(1054, '0x990099,0xffcc00'),
-        rel(1028, '0x6699cc,0x990000')
+        rel(1022, '', hairFemale),
+        rel(1036, '0x666666,0xFF00CC', topFemale),
+        rel(1054, '0x990099,0xffcc00', bottomFemale),
+        rel(1028, '0x6699cc,0x990000', shoesFemale)
     ].join('');
 
     const allClothes = hairFemale + hairFemaleAlt + topFemale + topFemaleAlt + bottomFemale + bottomFemaleAlt
