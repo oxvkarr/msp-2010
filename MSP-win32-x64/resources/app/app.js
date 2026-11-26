@@ -945,13 +945,6 @@ const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) =
         };
         response.on('error', fail);
         response.on('aborted', () => fail(new Error('polaczenie przerwane')));
-        res.once('error', fail);
-        res.once('finish', () => {
-            if (finished) return;
-            finished = true;
-            log('[ASSET OK] ' + cleanPath + ' | HTTP 200 | ' + (isSwf ? 'naglowek SWF poprawny' : 'plik odebrany') + ' | ' + bytes + ' bajtow | ' + url);
-            resolve(true);
-        });
         const begin = () => {
             if (started) return;
             if (isSwf && (prefix.length < 3 || !['FWS', 'CWS', 'ZWS'].includes(prefix.slice(0, 3).toString('ascii')))) {
@@ -962,6 +955,13 @@ const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) =
             started = true;
             response.removeListener('data', inspect);
             response.pause();
+            res.once('error', fail);
+            res.once('finish', () => {
+                if (finished) return;
+                finished = true;
+                log('[ASSET OK] ' + cleanPath + ' | HTTP 200 | ' + (isSwf ? 'naglowek SWF poprawny' : 'plik odebrany') + ' | ' + bytes + ' bajtow | ' + url);
+                resolve(true);
+            });
             res.set('Cache-Control', 'no-store');
             res.type(contentTypeFor(cleanPath));
             bytes = prefix.length;
