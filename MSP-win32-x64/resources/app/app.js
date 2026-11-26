@@ -875,13 +875,13 @@ const sendEmptySwfAsset = (req, res) => {
     res.type('application/x-shockwave-flash').send(emptySwfPayload);
 };
 
-const downloadRemoteAsset = (url, destination) => new Promise((resolve, reject) => {
+const downloadRemoteAssetRequest = (url, destination) => new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     const request = client.get(url, (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
             response.resume();
-            downloadRemoteAsset(new URL(response.headers.location, url).toString(), destination).then(resolve, reject);
+            downloadRemoteAssetRequest(new URL(response.headers.location, url).toString(), destination).then(resolve, reject);
             return;
         }
         if (response.statusCode !== 200) {
@@ -904,6 +904,16 @@ const downloadRemoteAsset = (url, destination) => new Promise((resolve, reject) 
         request.destroy(new Error('Remote asset timeout'));
     });
 });
+
+// Several Flash loaders may request the same asset at once. Share the write
+// so they cannot race over the same temporary file and leave a loader waiting.
+const pendingAssetDownloads = new Map();
+const downloadRemoteAsset = (url, destination) => {
+    if (pendingAssetDownloads.has(destination)) return pendingAssetDownloads.get(destination);
+    const pending = downloadRemoteAssetRequest(url, destination).finally(() => pendingAssetDownloads.delete(destination));
+    pendingAssetDownloads.set(destination, pending);
+    return pending;
+};
 
 const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
@@ -1327,7 +1337,9 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
             `${remoteAssetBaseUrl}/${aliasPath.toLowerCase()}${query}`
         ] : []),
         `${remoteAssetBaseUrl}/${cleanPath}${query}`,
-        `${remoteAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`
+        `${remoteAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`,
+        ...legacyMspAssetCandidates(cleanPath, query),
+        ...officialAssetCandidates
     ];
 
     for (const remoteUrl of candidates) {
@@ -3954,3 +3966,4 @@ start().catch((err) => {
     log(`[START] Nie udalo sie uruchomic serwera: ${err.stack || err.message}`);
     process.exitCode = 1;
 });
+
