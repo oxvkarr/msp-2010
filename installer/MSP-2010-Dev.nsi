@@ -60,8 +60,8 @@ Section "MSP 2010" SecInstall
     DetailPrint "Pobieranie najnowszej wersji MSP 2010..."
     DetailPrint "To moze potrwac kilka minut (ok. 60 MB)."
     nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\install.ps1" -Url "${APP_URL}" -OutDir "$INSTDIR" -SevenZip "$PLUGINSDIR\7zr.exe"'
-    Pop $1
     Pop $0
+    Pop $1
 
     ${If} $0 != "0"
         MessageBox MB_ICONSTOP|MB_OK "Nie udalo sie zainstalowac MSP 2010.$\r$\n$\r$\n$1$\r$\n$\r$\nKod bledu: $0"
