@@ -1,44 +1,37 @@
-# Buduje lekka paczke klienta MSP 2010 (Electron + Flash) bez debug exe,
-# bez dev node_modules i bez lokalnej bazy msp-db.json.
+# Buduje lekka paczke klienta MSP 2010 (Ruffle + Flash emulator) bez Electrona,
+# bez Flash Playera, bez debug exe i bez dev node_modules.
 #
-# Uzycie lokalne (korzysta z runtime Electron lezacego w MSP-win32-x64):
-#   powershell -ExecutionPolicy Bypass -File tools/build-slim.ps1 -RuntimeDir MSP-win32-x64
+# Uzycie lokalne:
+#   powershell -ExecutionPolicy Bypass -File tools/build-slim.ps1
 #
-# W GitHub Actions (pobiera czysty Electron 11.5.0):
+# W GitHub Actions (pobiera Ruffle i uzywa Node z runnera):
 #   powershell -ExecutionPolicy Bypass -File tools/build-slim.ps1
 
 [CmdletBinding()]
 param(
-    [string]$OutputDir = "",
-    [string]$ElectronVersion = "11.5.0",
-    [string]$RuntimeDir = "",
-    [string]$AppDir = "",
-    [switch]$IncludeLocalDb
+    [string]$OutputDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoDir = Split-Path -Parent $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($AppDir)) {
-    $AppDir = Join-Path $repoDir "MSP-win32-x64\resources\app"
-}
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $repoDir "dist\MSP-2010"
 }
 
-$appDirPath = [System.IO.Path]::GetFullPath($AppDir)
+$appDirPath = [System.IO.Path]::GetFullPath((Join-Path $repoDir "MSP-win32-x64\resources\app"))
 $outputPath = [System.IO.Path]::GetFullPath($OutputDir)
 
-foreach ($required in @("app.js", "main.js", "pepflashplayer.dll")) {
+foreach ($required in @("app.js", "logo.png")) {
     if (-not (Test-Path (Join-Path $appDirPath $required))) {
-        throw "Brak pliku $required w $appDirPath. Jesli to pepflashplayer.dll, uruchom: git lfs pull"
+        throw "Brak pliku $required w $appDirPath"
     }
 }
 
-# Zabezpieczenie przed pointerem Git LFS zamiast prawdziwego Flasha.
-$flashDll = Get-Item -LiteralPath (Join-Path $appDirPath "pepflashplayer.dll")
-if ($flashDll.Length -lt 1MB) {
-    throw "pepflashplayer.dll ma tylko $($flashDll.Length) bajtow - to pointer Git LFS. Uruchom: git lfs pull"
+# Zabezpieczenie: jesli app.js wymaga flasha - to nie ten build.
+$flashDll = Join-Path $appDirPath "pepflashplayer.dll"
+if (Test-Path $flashDll) {
+    Write-Host "Uwaga: pepflashplayer.dll istnieje, ale ten build uzywa Ruffle - Flash nie jest kopiowany."
 }
 
 if (Test-Path $outputPath) {
@@ -47,89 +40,52 @@ if (Test-Path $outputPath) {
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 
 # ---------------------------------------------------------------------------
-# 1. Runtime Electron
+# 1. Ruffle (player) + Node.js (runtime serwera) + MSP.exe (launcher)
 # ---------------------------------------------------------------------------
-if ([string]::IsNullOrWhiteSpace($RuntimeDir)) {
-    $cacheDir = Join-Path $repoDir ".cache\electron"
-    New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
-    $zipPath = Join-Path $cacheDir "electron-v$ElectronVersion-win32-x64.zip"
-    $runtimePath = Join-Path $cacheDir "electron-v$ElectronVersion-win32-x64"
+$cacheDir = Join-Path $repoDir ".cache\ruffle"
+New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
 
-    if (-not (Test-Path (Join-Path $runtimePath "electron.exe"))) {
-        if (-not (Test-Path $zipPath)) {
-            $url = "https://github.com/electron/electron/releases/download/v$ElectronVersion/electron-v$ElectronVersion-win32-x64.zip"
-            Write-Host "Pobieranie Electron $ElectronVersion..."
-            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
-        }
-        if (Test-Path $runtimePath) {
-            Remove-Item -LiteralPath $runtimePath -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $runtimePath -Force | Out-Null
-        $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
-        if ($tar) {
-            & $tar.Source -xf $zipPath -C $runtimePath
-            if ($LASTEXITCODE -ne 0) { throw "Nie udalo sie rozpakowac Electron (tar $LASTEXITCODE)" }
-        } else {
-            Expand-Archive -LiteralPath $zipPath -DestinationPath $runtimePath -Force
-        }
-        $nested = Get-ChildItem -LiteralPath $runtimePath -Directory |
-            Where-Object { (Test-Path (Join-Path $_.FullName "electron.exe")) -or (Test-Path (Join-Path $_.FullName "MSP.exe")) } |
-            Select-Object -First 1
-        if ($nested) {
-            $runtimePath = $nested.FullName
-        }
+# --- Ruffle ---
+$ruffleZip = Join-Path $cacheDir "ruffle-windows-x86_64.zip"
+$ruffleExe = Join-Path $cacheDir "ruffle.exe"
+if (-not (Test-Path $ruffleExe)) {
+    if (-not (Test-Path $ruffleZip)) {
+        $ruffleUrl = "https://github.com/ruffle-rs/ruffle/releases/download/v0.8.0/ruffle-0.8.0-windows-x86_64.zip"
+        Write-Host "Pobieranie Ruffle 0.8.0..."
+        Invoke-WebRequest -Uri $ruffleUrl -OutFile $ruffleZip -UseBasicParsing
     }
-    $RuntimeDir = $runtimePath
+    $ruffleExtract = Join-Path $cacheDir "ruffle-extract"
+    if (Test-Path $ruffleExtract) { Remove-Item -LiteralPath $ruffleExtract -Recurse -Force }
+    New-Item -ItemType Directory -Path $ruffleExtract -Force | Out-Null
+    Expand-Archive -LiteralPath $ruffleZip -DestinationPath $ruffleExtract -Force
+    $found = Get-ChildItem -LiteralPath $ruffleExtract -Recurse -Filter "ruffle.exe" | Select-Object -First 1
+    if (-not $found) { throw "Nie znaleziono ruffle.exe w archiwum Ruffle" }
+    Copy-Item -LiteralPath $found.FullName -Destination $ruffleExe -Force
 }
+Copy-Item -LiteralPath $ruffleExe -Destination (Join-Path $outputPath "ruffle.exe") -Force
 
-$runtimePath = [System.IO.Path]::GetFullPath($RuntimeDir)
-$runtimeExe = Join-Path $runtimePath "electron.exe"
-if (-not (Test-Path $runtimeExe)) {
-    $runtimeExe = Join-Path $runtimePath "MSP.exe"
+# --- Node.js (ten sam, ktory uruchamia build - gwarancja zgodnosci wersji) ---
+$nodeCmd = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $nodeCmd) { throw "Brak node.exe w PATH - wymagany do buildu i do klienta" }
+Copy-Item -LiteralPath $nodeCmd.Source -Destination (Join-Path $outputPath "node.exe") -Force
+
+# --- MSP.exe (lekkie uruchomienie node app.js bez konsoli) ---
+$launcherCs = Join-Path $repoDir "tools\MSP-Launcher.cs"
+if (-not (Test-Path $launcherCs)) { throw "Brak pliku $launcherCs" }
+$cscPath = $null
+$cscCmd = Get-Command csc.exe -ErrorAction SilentlyContinue
+if ($cscCmd) { $cscPath = $cscCmd.Source }
+if (-not $cscPath) {
+    $candidates = @(
+        "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+        "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+    )
+    $cscPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
-if (-not (Test-Path $runtimeExe)) {
-    throw "Brak electron.exe (ani MSP.exe) w $runtimePath"
-}
-
-$runtimeFiles = @(
-    "icudtl.dat",
-    "libEGL.dll",
-    "libGLESv2.dll",
-    "resources.pak",
-    "chrome_100_percent.pak",
-    "chrome_200_percent.pak",
-    "snapshot_blob.bin",
-    "v8_context_snapshot.bin",
-    "ffmpeg.dll",
-    "d3dcompiler_47.dll",
-    "vk_swiftshader.dll",
-    "vulkan-1.dll",
-    "vk_swiftshader_icd.json",
-    "LICENSES.chromium.html"
-)
-
-foreach ($file in $runtimeFiles) {
-    $source = Join-Path $runtimePath $file
-    if (Test-Path $source) {
-        Copy-Item -LiteralPath $source -Destination (Join-Path $outputPath $file) -Force
-    }
-}
-
-Copy-Item -LiteralPath $runtimeExe -Destination (Join-Path $outputPath "MSP.exe") -Force
-
-$localesOut = Join-Path $outputPath "locales"
-New-Item -ItemType Directory -Path $localesOut -Force | Out-Null
-foreach ($locale in @("en-US.pak", "pl.pak")) {
-    $source = Join-Path $runtimePath "locales\$locale"
-    if (Test-Path $source) {
-        Copy-Item -LiteralPath $source -Destination (Join-Path $localesOut $locale) -Force
-    }
-}
-
-$swiftShader = Join-Path $runtimePath "swiftshader"
-if (Test-Path $swiftShader) {
-    Copy-Item -LiteralPath $swiftShader -Destination (Join-Path $outputPath "swiftshader") -Recurse -Force
-}
+if (-not $cscPath) { throw "Brak csc.exe - nie mozna skompilowac MSP.exe" }
+$mspExe = Join-Path $outputPath "MSP.exe"
+& $cscPath /nologo /target:winexe /out:$mspExe $launcherCs
+if ($LASTEXITCODE -ne 0) { throw "Kompilacja MSP.exe zakonczyla sie kodem $LASTEXITCODE" }
 
 # ---------------------------------------------------------------------------
 # 2. Pliki aplikacji
@@ -137,11 +93,8 @@ if (Test-Path $swiftShader) {
 $appOut = Join-Path $outputPath "resources\app"
 New-Item -ItemType Directory -Path $appOut -Force | Out-Null
 
-foreach ($file in @("app.js", "main.js", "logo.png", "pepflashplayer.dll")) {
+foreach ($file in @("app.js", "logo.png")) {
     Copy-Item -LiteralPath (Join-Path $appDirPath $file) -Destination (Join-Path $appOut $file) -Force
-}
-if ($IncludeLocalDb -and (Test-Path (Join-Path $appDirPath "msp-db.json"))) {
-    Copy-Item -LiteralPath (Join-Path $appDirPath "msp-db.json") -Destination (Join-Path $appOut "msp-db.json") -Force
 }
 
 $envContent = @"
@@ -158,13 +111,13 @@ REMOTE_GATEWAY_TIMEOUT_MS=20000
 Set-Content -LiteralPath (Join-Path $appOut ".env") -Value $envContent -Encoding ASCII
 
 # ---------------------------------------------------------------------------
-# 3. Tylko produkcyjne zaleznosci (bez @aws-sdk i dev tools)
+# 3. Tylko produkcyjne zaleznosci
 # ---------------------------------------------------------------------------
 $clientPackage = [ordered]@{
     name = "msp-local-2010"
     version = "1.0.0"
     private = $true
-    main = "main.js"
+    main = "app.js"
     dependencies = [ordered]@{
         amfjs = "1.3.1"
         dotenv = "17.4.2"
@@ -189,12 +142,9 @@ $nodeModules = Join-Path $appOut "node_modules"
 if (-not (Test-Path (Join-Path $nodeModules "express"))) {
     throw "Brak node_modules/express po instalacji"
 }
-if (-not (Test-Path (Join-Path $nodeModules "mongodb"))) {
-    throw "Brak node_modules/mongodb po instalacji"
-}
 
 $sizeMb = [math]::Round(((Get-ChildItem -LiteralPath $outputPath -Recurse -File | Measure-Object Length -Sum).Sum / 1MB), 1)
 Write-Host ""
-Write-Host "Slim client gotowy: $outputPath"
+Write-Host "Slim client (Ruffle) gotowy: $outputPath"
 Write-Host "Rozmiar rozpakowany: $sizeMb MB"
 Write-Host "Uruchom: $outputPath\MSP.exe"

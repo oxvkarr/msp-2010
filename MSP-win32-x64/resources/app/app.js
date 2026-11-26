@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const http = require('http');
+const { spawn } = require('child_process');
 const https = require('https');
 const { Writable } = require('stream');
 const amfjs = require('amfjs');
@@ -3896,6 +3897,36 @@ const start = async () => {
     }
     startServer(80);
     startServer(1600);
+    scheduleRuffleLaunch();
+};
+
+const scheduleRuffleLaunch = () => {
+    const rufflePath = path.join(__dirname, '..', '..', 'ruffle.exe');
+    if (!fs.existsSync(rufflePath)) {
+        log('[RUFFLE] brak ruffle.exe - pomijam uruchomienie');
+        return;
+    }
+    const launch = () => {
+        const baseUrl = 'http://127.0.0.1/';
+        const flashVars = buildFlashVars(baseUrl, baseUrl);
+        const swfUrl = `${baseUrl}Main_2010123_95850.swf?${startupParams}`;
+        const args = [swfUrl, '--tcp-connections', 'allow'];
+        for (const part of String(flashVars).split('&')) {
+            if (part) args.push(`-P${part}`);
+        }
+        try {
+            const child = spawn(rufflePath, args, { cwd: __dirname, stdio: 'ignore', windowsHide: false });
+            child.on('exit', (code) => {
+                log(`[RUFFLE] zakonczono kod=${code}`);
+                setTimeout(() => process.exit(0), 500);
+            });
+            child.on('error', (err) => log(`[RUFFLE] blad uruchomienia: ${err.message}`));
+            log('[RUFFLE] uruchomiono');
+        } catch (err) {
+            log(`[RUFFLE] wyjatek: ${err.message}`);
+        }
+    };
+    setTimeout(launch, 2500);
 };
 
 start().catch((err) => {

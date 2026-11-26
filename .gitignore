@@ -35,6 +35,5 @@ MSP-win32-x64/resources/app/*
 !MSP-win32-x64/resources/app/tools/
 !MSP-win32-x64/resources/app/tools/*.ps1
 !MSP-win32-x64/resources/app/tools/*.js
-!MSP-win32-x64/resources/app/pepflashplayer.dll
 !installer/7zr.exe
 .cache/

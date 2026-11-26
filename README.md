@@ -25,40 +25,41 @@ Wymagania: **Windows 10/11 x64** i połączenie z internetem.
 W repozytorium i w instalatorze nie ma:
 
 - drugiego pliku `MSP-Debug.exe` (oszczędność ok. 126 MB),
+- ciezkiego Electrona i Flash Playera (`pepflashplayer.dll`, ok. 130 MB) - zamiast nich uzywany jest **Ruffle**, emulator Flash napisany w Rust,
 - deweloperskich `node_modules` i Electrona z npm (ok. 200 MB),
 - lokalnej bazy `msp-db.json` z kontami testowymi,
 - zbędnych tłumaczeń Electrona i plików zbiorczych.
 
-Zostaje tylko to, co potrzebne do uruchomienia gry: Electron, Flash Player, serwer lokalny i kilka modułów Node. Assety gry (SWF, obrazki, dźwięki) są pobierane z Cloudflare R2, a nie trzymane w paczce.
+Zostaje tylko to, co potrzebne do uruchomienia gry: Ruffle, Node.js, serwer lokalny i kilka modułów Node. Assety gry (SWF, obrazki, dźwięki) są pobierane z Cloudflare R2, a nie trzymane w paczce.
 
 ## Co jest w środku
 
 ```
 MSP-win32-x64/resources/app/
-  app.js              lokalny serwer Express (AMF, SOAP, assety)
-  main.js             okno Electron + Flash
-  pepflashplayer.dll  Flash Player PPAPI (Git LFS)
+  app.js              lokalny serwer Express (AMF, SOAP, assety) + uruchamianie Ruffle
   logo.png
 installer/
   MSP-2010.nsi        lekki instalator NSIS (pobiera paczkę z GitHuba)
   install.ps1         pobieranie i rozpakowanie paczki
 tools/
-  build-slim.ps1      buduje odchudzoną paczkę klienta
+  build-slim.ps1      buduje odchudzoną paczkę klienta (Ruffle + Node)
+  MSP-Launcher.cs     zrodlo lekkiego launcher MSP.exe
 .github/workflows/
   release.yml         GitHub Actions: buduje ZIP i instalator, publikuje release
 ```
 
+W zbudowanej paczce klienta (dist/MSP-2010):
+  MSP.exe             launcher (uruchamia node app.js bez konsoli)
+  ruffle.exe          emulator Flash (Ruffle)
+  node.exe            runtime Node.js
+  resources/app/      serwer + zaleznosci Node
+
 ## Budowanie lokalnie
 
-Wymagania: Node.js 20+, Git LFS, 7-Zip (opcjonalnie) i NSIS (opcjonalnie, do instalatora).
+Wymagania: Node.js 20+, .NET Framework (csc.exe, jest w Windows), 7-Zip (opcjonalnie) i NSIS (opcjonalnie, do instalatora).
 
 ```powershell
-git lfs pull
-
-# Szybki build z runtime Electron leżącym w MSP-win32-x64:
-powershell -ExecutionPolicy Bypass -File tools/build-slim.ps1 -RuntimeDir MSP-win32-x64
-
-# Albo build z czystym Electronem 11.5.0 pobranym z GitHuba:
+# Build (pobiera Ruffle i Node, kompiluje MSP.exe):
 powershell -ExecutionPolicy Bypass -File tools/build-slim.ps1
 ```
 
@@ -89,4 +90,4 @@ https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64
 
 - To nieoficjalny, prywatny serwer. Nie używaj haseł z prawdziwego konta MovieStarPlanet.
 - Klient nie jest podpisany cyfrowo, dlatego Windows może pokazać SmartScreen.
-- Flash Player jest dołączony jako `pepflashplayer.dll` i uruchamiany przez Electron.
+- Flash Player nie jest juz potrzebny: uzywany jest Ruffle (`ruffle.exe`), emulator Flash napisany w Rust.

@@ -5,13 +5,9 @@ on:
     branches: [main]
     paths:
       - "MSP-win32-x64/resources/app/app.js"
-      - "MSP-win32-x64/resources/app/main.js"
-      - "MSP-win32-x64/resources/app/package.json"
-      - "MSP-win32-x64/resources/app/package-lock.json"
-      - "MSP-win32-x64/resources/app/pepflashplayer.dll"
       - "MSP-win32-x64/resources/app/logo.png"
       - "installer/**"
-      - "tools/build-slim.ps1"
+      - "tools/**"
       - ".github/workflows/release.yml"
   workflow_dispatch:
 
@@ -29,8 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: true
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -92,7 +86,7 @@ jobs:
 
           Wymagania: Windows 10/11 x64, polaczenie z internetem.
 
-          Instalator nie zawiera ciezkiego Electrona ani Flasha - pobiera gotowa, odchudzona paczke (bez debug exe i bez dev node_modules).
+          Klient uzywa Ruffle (emulatora Flash w Rust) zamiast ciezkiego Electrona i Flash Playera. Paczka bez debug exe i bez dev node_modules.
           "@
           Set-Content -LiteralPath "dist\release-notes.md" -Value $notes -Encoding UTF8
 
