@@ -547,12 +547,12 @@ const fallbackPlayHtml = (req) => {
             function updateStats(line) {
                 if (line.indexOf('[REQ]') !== -1) counters.req += 1;
                 if (line.indexOf('[AMF]') !== -1 || line.indexOf('[REMOTE GATEWAY]') !== -1) counters.amf += 1;
-                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[LOOKDATA]') !== -1 || line.indexOf('[TRANSLATION]') !== -1) counters.assets += 1;
+                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1 || line.indexOf('[TRANSLATION]') !== -1) counters.assets += 1;
                 setText(reqStat, String(counters.req));
                 setText(amfStat, String(counters.amf));
                 setText(assetStat, String(counters.assets));
                 if (line.indexOf('Serwer czeka na porcie') !== -1 || line.indexOf('[FALLBACK]') !== -1) setLight('server', 'good', 'Serwer');
-                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[LOOKDATA]') !== -1) setLight('assets', 'good', 'Pliki');
+                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1) setLight('assets', 'good', 'Pliki');
                 if (line.indexOf('[REMOTE ASSET TRY MISS]') !== -1 || line.indexOf('[REMOTE ASSET MISS]') !== -1 || line.indexOf('[MISS]') !== -1) setLight('assets', 'warn', 'Pliki');
                 if (line.indexOf('[TRANSLATION]') !== -1 || line.indexOf('pl_pl_resourcemodule') !== -1) setLight('locale', 'good', 'PL');
                 if (line.indexOf('[TRANSLATION MISS]') !== -1 || line.indexOf('MISSING_LOCALE') !== -1) setLight('locale', 'bad', 'PL');
@@ -701,8 +701,8 @@ const fallbackPlayHtml = (req) => {
                     fetch('/api/db/status')
                         .then(function (response) { return response.json(); })
                         .then(function (data) {
-                            setText(dbStat, data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'MongoDB' : data.source));
-                            setLight('db', data.mongoConnected ? 'good' : 'warn', data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'Baza' : 'JSON'));
+                            setText(dbStat, data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'MongoDB lokalnie' : 'JSON lokalnie'));
+                            setLight('db', data.mongoConnected ? 'good' : 'warn', data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'Baza lokalna' : 'JSON lokalny'));
                         })
                         .catch(function () {
                             setText(dbStat, 'offline');
@@ -1316,6 +1316,7 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
                     log(`[REMOTE ASSET CACHE BAD] ${req.url} -> ${candidatePath}`);
                     continue;
                 }
+                log(`[ASSET CACHE HIT] ${req.url} -> ${candidatePath}`);
                 res.type(contentTypeFor(candidatePath)).sendFile(candidatePath);
                 return true;
             }
@@ -1975,7 +1976,13 @@ app.all(/^\/+WebService\/User\/UserService\.asmx$/i, (req, res) => {
     sendSoapResult(res, safeAction, `<${safeAction}Result>false</${safeAction}Result>`);
 });
 
-app.use(express.static(publicPath));
+app.use(express.static(publicPath, {
+    setHeaders: (res, filePath) => {
+        if (remoteAssetExtensions.has(path.extname(filePath).toLowerCase())) {
+            log(`[ASSET LOCAL] ${res.req.url} -> ${filePath}`);
+        }
+    }
+}));
 
 app.get('*', async (req, res, next) => {
     if (await serveRemoteAsset(req, res, req.path.replace(/^\/+/, ''))) {
