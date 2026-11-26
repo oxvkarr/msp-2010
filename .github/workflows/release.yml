@@ -51,7 +51,7 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: |
-          & "C:\Program Files (x86)\NSIS\makensis.exe" /DOUTDIR="$PWD\dist" installer\MSP-2010.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DOUTDIR="$PWD\dist" "$PWD\installer\MSP-2010.nsi"
           if ($LASTEXITCODE -ne 0) { throw "makensis zakonczyl sie kodem $LASTEXITCODE" }
 
       - name: Checksums and release notes
