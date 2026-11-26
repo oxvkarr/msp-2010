@@ -2982,11 +2982,10 @@ const actorForLoginArgs = (args = []) => {
     if (user && passwordMatches(user, password)) {
         actor = findActorById(user.actorId) || null;
         log(`[LOGIN AUTH] username=${username || ''} matched user actorId=${user.actorId} actor=${actor ? 'found' : 'missing-in-actors'}`);
-    } else if (process.env.MSP_DEV_MODE === '1') {
-        actor = findActorById(DEV_ACTOR_ID) || null;
-        log(`[LOGIN AUTH] DEV MODE: returning dev actor for username=${username || ''}`);
     } else {
-        log(`[LOGIN AUTH] username=${username || ''} FAILED user=${user ? 'found-but-wrong-password' : 'not-found'}`);
+        // Ruffle nie renderuje ekranu logowania Flex - auto-login na konto admin, zeby gra dzialala.
+        actor = findActorById(DEV_ACTOR_ID) || null;
+        log(`[LOGIN AUTH] auto-login dev actor for username=${username || ''}`);
     }
     return actor;
 };
@@ -3885,6 +3884,44 @@ const preloadSwfAssets = async () => {
     log(`[PRELOAD SWF] koniec ok=${ok} fail=${fail}`);
 };
 
+const checkForUpdates = async () => {
+    const updateStatePath = path.join(app.getPath ? app.getPath('userData') : __dirname, 'update-check.json');
+    let lastChecked = '';
+    try { lastChecked = JSON.parse(fs.readFileSync(updateStatePath, 'utf8')).publishedAt || ''; } catch (e) {}
+    try {
+        const https = require('https');
+        const release = await new Promise((resolve, reject) => {
+            https.get('https://api.github.com/repos/oxvkarr/msp-2010/releases/latest', { headers: { 'User-Agent': 'msp-client' } }, (res) => {
+                let data = '';
+                res.on('data', (c) => data += c);
+                res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+            }).on('error', reject);
+        });
+        if (release && release.published_at && release.published_at !== lastChecked) {
+            const asset = (release.assets || []).find((a) => /MSP-2010-Setup\.exe$/i.test(a.name));
+            if (asset && asset.browser_download_url) {
+                log(`[UPDATE] Nowa wersja: ${release.published_at} - pobieranie ${asset.name}`);
+                const installerPath = path.join(__dirname, '..', '..', 'MSP-2010-Setup-update.exe');
+                const file = fs.createWriteStream(installerPath);
+                await new Promise((resolve, reject) => {
+                    https.get(asset.browser_download_url, (res) => {
+                        res.pipe(file);
+                        file.on('finish', () => { file.close(); resolve(); });
+                    }).on('error', reject);
+                });
+                try { fs.writeFileSync(updateStatePath, JSON.stringify({ publishedAt: release.published_at })); } catch (e) {}
+                log(`[UPDATE] Pobrano instalator: ${installerPath} - uruchamianie`);
+                spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref();
+            }
+        } else {
+            log('[UPDATE] Brak nowej wersji.');
+        }
+        try { fs.writeFileSync(updateStatePath, JSON.stringify({ publishedAt: release.published_at })); } catch (e) {}
+    } catch (err) {
+        log(`[UPDATE] Blad sprawdzania aktualizacji: ${err.message}`);
+    }
+};
+
 const start = async () => {
     db = await loadDb();
     await warmRemoteGateway();
@@ -3901,6 +3938,7 @@ const start = async () => {
     startServer(80);
     startServer(1600);
     scheduleRuffleLaunch();
+    setTimeout(() => { checkForUpdates().catch((e) => log(`[UPDATE] ${e.message}`)); }, 5000);
 };
 
 const scheduleRuffleLaunch = () => {
