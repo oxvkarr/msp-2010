@@ -35,8 +35,22 @@ try {
         throw "Pobrany plik jest za maly - to prawdopodobnie blad serwera."
     }
 
+    # Zamknij dzialajace instancje, zeby nie blokowac plikow (d3dcompiler_47.dll itp.)
+    foreach ($procName in @('MSP', 'electron', 'node')) {
+        Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 1
+
     if (Test-Path $OutDir) {
-        Remove-Item -LiteralPath $OutDir -Recurse -Force
+        # Retry usuniecia (Windows moze trzymac uchwyty)
+        for ($i = 0; $i -lt 5; $i++) {
+            try {
+                Remove-Item -LiteralPath $OutDir -Recurse -Force -ErrorAction Stop
+                break
+            } catch {
+                Start-Sleep -Seconds 1
+            }
+        }
     }
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
@@ -52,13 +66,17 @@ try {
 
         foreach ($sz in $sevenCandidates) {
             if (-not $sz -or -not (Test-Path $sz)) { continue }
-            Write-Host "Rozpakowywanie (7-Zip): $sz"
-            & $sz x -y "-o$OutDir" $archive
-            if ($LASTEXITCODE -eq 0) {
-                $extracted = $true
-                break
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+                Write-Host "Rozpakowywanie (7-Zip): $sz (proba $attempt)"
+                & $sz x -y -aoa "-o$OutDir" $archive
+                if ($LASTEXITCODE -eq 0) {
+                    $extracted = $true
+                    break
+                }
+                Write-Host "7-Zip ($sz) zakonczyl sie kodem $LASTEXITCODE, ponawiam..."
+                Start-Sleep -Seconds 2
             }
-            Write-Host "7-Zip ($sz) zakonczyl sie kodem $LASTEXITCODE, probuje kolejny..."
+            if ($extracted) { break }
         }
         if (-not $extracted) {
             throw "Nie udalo sie rozpakowac archiwum .7z (sprobowano: $($sevenCandidates -join ', '))."
