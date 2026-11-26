@@ -1580,7 +1580,7 @@ app.get('/api/debug/logs', (req, res) => {
     });
 });
 
-const xmlEscape = (value) => String(value ?? '')
+const xmlEscape = (value) => String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
