@@ -57,6 +57,9 @@ app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('ignore-certificate-errors');
 app.commandLine.appendSwitch('allow-running-insecure-content');
+if (process.env.REMOTE_ASSET_CACHE !== '1') {
+    app.commandLine.appendSwitch('disable-http-cache');
+}
 app.commandLine.appendSwitch('host-rules', localHostRules);
 if (useFiddlerProxy) {
     const proxyPac = [
@@ -322,3 +325,4 @@ app.whenReady()
         debugLog(`[WINDOW START FAIL] ${err.stack || err.message}`);
     });
 app.on('window-all-closed', () => app.quit());
+

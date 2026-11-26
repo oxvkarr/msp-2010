@@ -37,6 +37,7 @@ const realMspServer = (process.env.REAL_MSP_SERVER || 'pl').toLowerCase() === 'u
 const realMspGatewayUrl = `https://ws-${realMspServer}.mspapis.com/Gateway.aspx`;
 const isDebugMode = process.env.MSP_DEBUG === '1';
 const isServerOnly = process.env.MSP_SERVER_ONLY === '1' || process.argv.includes('--server');
+const clientMemoryDb = process.env.MSP_CLIENT_MEMORY_DB === '1' && !isServerOnly;
 const remoteGatewayExplicitEnabled =
     process.env.USE_REMOTE_GATEWAY === '1' ||
     process.env.REMOTE_GATEWAY_AMF === '1' ||
@@ -701,8 +702,8 @@ const fallbackPlayHtml = (req) => {
                     fetch('/api/db/status')
                         .then(function (response) { return response.json(); })
                         .then(function (data) {
-                            setText(dbStat, data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'MongoDB lokalnie' : 'JSON lokalnie'));
-                            setLight('db', data.mongoConnected ? 'good' : 'warn', data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'Baza lokalna' : 'JSON lokalny'));
+                            setText(dbStat, data.source === 'memory' ? 'RAM klienta' : (data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'MongoDB lokalnie' : 'JSON lokalnie')));
+                            setLight('db', data.mongoConnected ? 'good' : 'warn', data.source === 'memory' ? 'RAM klienta' : (data.source === 'remote' ? 'Render' : (data.mongoConnected ? 'Baza lokalna' : 'JSON lokalny')));
                         })
                         .catch(function () {
                             setText(dbStat, 'offline');
@@ -929,6 +930,7 @@ const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) =
             return;
         }
 
+        res.set('Cache-Control', 'no-store');
         res.type(contentTypeFor(cleanPath));
         response.pipe(res);
         response.on('end', () => resolve(true));
@@ -3234,6 +3236,11 @@ const loadMongoDb = async () => {
 };
 
 const loadDb = async () => {
+    if (clientMemoryDb) {
+        dbSource = 'memory';
+        log('[DB] Lokalny klient uzywa pamieci RAM; konta obsluguje zdalne API');
+        return defaultDb();
+    }
     if (useRemoteGateway) {
         dbSource = 'remote';
         log(`[DB] Uzywam zdalnej bramy: ${remoteGatewayUrl}`);
@@ -3248,6 +3255,7 @@ let db = defaultDb();
 
 const saveDb = async () => {
     db = ensureDbShape(db);
+    if (clientMemoryDb) return;
     if (mongoClient && mongoDatabase) {
         // Zapisujemy tylko dane ktore sie zmieniaja — nie catalog (za duzy, niezmienny)
         const toSave = {
@@ -3973,4 +3981,5 @@ start().catch((err) => {
     log(`[START] Nie udalo sie uruchomic serwera: ${err.stack || err.message}`);
     process.exitCode = 1;
 });
+
 

@@ -152,11 +152,12 @@ MSP_DEV_MODE=$devModeFlag
 MSP_SERVER_ONLY=0
 MSP_LOCALE=pl_PL
 REMOTE_ASSET_BASE_URL=https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev/2010
-REMOTE_ASSET_CACHE=1
+REMOTE_ASSET_CACHE=0
+MSP_CLIENT_MEMORY_DB=1
 REMOTE_SOAP_URL=https://msp-2010-api.onrender.com
 USE_REMOTE_GATEWAY=0
 REMOTE_GATEWAY_TIMEOUT_MS=20000
-# Opcjonalnie: MongoDB Atlas (trwały zapis kont/postaci). Zostaw puste = lokalny JSON.
+# Konta i postacie obsluguje produkcyjne API; lokalny klient nie zapisuje bazy.
 MONGODB_URI=
 MONGO_URI=
 "@
@@ -200,3 +201,4 @@ Write-Host ""
 Write-Host "Slim client (Electron) gotowy: $outputPath"
 Write-Host "Rozmiar rozpakowany: $sizeMb MB"
 Write-Host "Uruchom: $outputPath\MSP.exe"
+
