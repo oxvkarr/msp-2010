@@ -548,12 +548,12 @@ const fallbackPlayHtml = (req) => {
             function updateStats(line) {
                 if (line.indexOf('[REQ]') !== -1) counters.req += 1;
                 if (line.indexOf('[AMF]') !== -1 || line.indexOf('[REMOTE GATEWAY]') !== -1) counters.amf += 1;
-                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1 || line.indexOf('[TRANSLATION]') !== -1) counters.assets += 1;
+                if (line.indexOf('[ASSET OK]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1 || line.indexOf('[TRANSLATION]') !== -1) counters.assets += 1;
                 setText(reqStat, String(counters.req));
                 setText(amfStat, String(counters.amf));
                 setText(assetStat, String(counters.assets));
                 if (line.indexOf('Serwer czeka na porcie') !== -1 || line.indexOf('[FALLBACK]') !== -1) setLight('server', 'good', 'Serwer');
-                if (line.indexOf('[REMOTE ASSET]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1) setLight('assets', 'good', 'Pliki');
+                if (line.indexOf('[ASSET OK]') !== -1 || line.indexOf('[ASSET CACHE HIT]') !== -1 || line.indexOf('[ASSET LOCAL]') !== -1 || line.indexOf('[LOOKDATA]') !== -1) setLight('assets', 'good', 'Pliki');
                 if (line.indexOf('[REMOTE ASSET TRY MISS]') !== -1 || line.indexOf('[REMOTE ASSET MISS]') !== -1 || line.indexOf('[MISS]') !== -1) setLight('assets', 'warn', 'Pliki');
                 if (line.indexOf('[TRANSLATION]') !== -1 || line.indexOf('pl_pl_resourcemodule') !== -1) setLight('locale', 'good', 'PL');
                 if (line.indexOf('[TRANSLATION MISS]') !== -1 || line.indexOf('MISSING_LOCALE') !== -1) setLight('locale', 'bad', 'PL');
@@ -926,15 +926,55 @@ const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) =
         }
         if (response.statusCode !== 200) {
             response.resume();
-            reject(new Error(`HTTP ${response.statusCode}`));
+            reject(new Error('HTTP ' + response.statusCode));
             return;
         }
-
-        res.set('Cache-Control', 'no-store');
-        res.type(contentTypeFor(cleanPath));
-        response.pipe(res);
-        response.on('end', () => resolve(true));
-        response.on('error', reject);
+        const isSwf = path.extname(cleanPath).toLowerCase() === '.swf';
+        let prefix = Buffer.alloc(0);
+        let bytes = 0;
+        let started = false;
+        let finished = false;
+        const fail = (err) => {
+            if (finished) return;
+            finished = true;
+            if (res.headersSent) {
+                log('[ASSET BLAD] ' + cleanPath + ' | przerwane pobieranie: ' + err.message);
+                res.destroy(err);
+            }
+            reject(err);
+        };
+        response.on('error', fail);
+        response.on('aborted', () => fail(new Error('polaczenie przerwane')));
+        res.once('error', fail);
+        res.once('finish', () => {
+            if (finished) return;
+            finished = true;
+            log('[ASSET OK] ' + cleanPath + ' | HTTP 200 | ' + (isSwf ? 'naglowek SWF poprawny' : 'plik odebrany') + ' | ' + bytes + ' bajtow | ' + url);
+            resolve(true);
+        });
+        const begin = () => {
+            if (started) return;
+            if (isSwf && (prefix.length < 3 || !['FWS', 'CWS', 'ZWS'].includes(prefix.slice(0, 3).toString('ascii')))) {
+                response.resume();
+                fail(new Error('niepoprawny naglowek SWF'));
+                return;
+            }
+            started = true;
+            response.removeListener('data', inspect);
+            response.pause();
+            res.set('Cache-Control', 'no-store');
+            res.type(contentTypeFor(cleanPath));
+            bytes = prefix.length;
+            if (prefix.length) res.write(prefix);
+            response.on('data', chunk => { bytes += chunk.length; });
+            response.pipe(res);
+        };
+        const inspect = chunk => {
+            prefix = Buffer.concat([prefix, chunk]);
+            if (!isSwf || prefix.length >= 3) begin();
+        };
+        response.on('data', inspect);
+        response.once('end', () => { if (!started && !finished) begin(); });
     });
     request.on('error', reject);
     request.setTimeout(15000, () => {
@@ -1354,9 +1394,9 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
                 return true;
             }
             await pipeRemoteAsset(remoteUrl, res, cleanPath);
-            log(`[REMOTE ASSET] ${req.url} -> ${remoteUrl}`);
             return true;
         } catch (err) {
+            if (res.headersSent) return true;
             log(`[REMOTE ASSET TRY MISS] ${remoteUrl} ${err.message}`);
         }
     }
