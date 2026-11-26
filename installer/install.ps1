@@ -24,6 +24,7 @@ try {
             throw "curl zakonczyl sie kodem $LASTEXITCODE"
         }
     } else {
+        $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $Url -OutFile $archive -UseBasicParsing
     }
 
@@ -39,11 +40,28 @@ try {
     }
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
-    if ($SevenZip -and (Test-Path $SevenZip) -and $extension -eq ".7z") {
-        Write-Host "Rozpakowywanie (7-Zip)..."
-        & $SevenZip x -y "-o$OutDir" $archive
-        if ($LASTEXITCODE -ne 0) {
-            throw "7-Zip zakonczyl sie kodem $LASTEXITCODE"
+    $extracted = $false
+    if ($extension -eq ".7z") {
+        # Proba 1: dolaczony 7zr.exe
+        $sevenCandidates = @($SevenZip)
+        # Proba 2: systemowy 7-Zip
+        $systemSeven = "C:\Program Files\7-Zip\7z.exe"
+        if (Test-Path $systemSeven) { $sevenCandidates += $systemSeven }
+        $systemSeven86 = "C:\Program Files (x86)\7-Zip\7z.exe"
+        if (Test-Path $systemSeven86) { $sevenCandidates += $systemSeven86 }
+
+        foreach ($sz in $sevenCandidates) {
+            if (-not $sz -or -not (Test-Path $sz)) { continue }
+            Write-Host "Rozpakowywanie (7-Zip): $sz"
+            & $sz x -y "-o$OutDir" $archive
+            if ($LASTEXITCODE -eq 0) {
+                $extracted = $true
+                break
+            }
+            Write-Host "7-Zip ($sz) zakonczyl sie kodem $LASTEXITCODE, probuje kolejny..."
+        }
+        if (-not $extracted) {
+            throw "Nie udalo sie rozpakowac archiwum .7z (sprobowano: $($sevenCandidates -join ', '))."
         }
     } else {
         $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
