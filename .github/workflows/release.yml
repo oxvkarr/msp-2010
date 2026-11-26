@@ -54,6 +54,22 @@ jobs:
           & "C:\Program Files (x86)\NSIS\makensis.exe" /DOUTDIR="$PWD\dist" "$PWD\installer\MSP-2010.nsi"
           if ($LASTEXITCODE -ne 0) { throw "makensis zakonczyl sie kodem $LASTEXITCODE" }
 
+      - name: Build developer payload
+        shell: pwsh
+        run: |
+          ./tools/build-slim.ps1 -Developer
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Push-Location "dist\MSP-2010-Dev"
+          & "C:\Program Files\7-Zip\7z.exe" a -t7z -mx=9 "$PWD\..\MSP-2010-Dev-Slim-win64.7z" "*"
+          if ($LASTEXITCODE -ne 0) { throw "7-Zip (dev 7z) zakonczyl sie kodem $LASTEXITCODE" }
+          Pop-Location
+
+      - name: Build developer installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DOUTDIR="$PWD\dist" "$PWD\installer\MSP-2010-Dev.nsi"
+          if ($LASTEXITCODE -ne 0) { throw "makensis (dev) zakonczyl sie kodem $LASTEXITCODE" }
+
       - name: Checksums and release notes
         shell: pwsh
         run: |
@@ -102,7 +118,9 @@ jobs:
           body_path: dist/release-notes.md
           files: |
             dist/MSP-2010-Setup.exe
+            dist/MSP-2010-Dev-Setup.exe
             dist/MSP-2010-Slim-win64.zip
             dist/MSP-2010-Slim-win64.7z
+            dist/MSP-2010-Dev-Slim-win64.7z
             dist/SHA256SUMS.txt
           make_latest: true

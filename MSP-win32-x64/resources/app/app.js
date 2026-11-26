@@ -2982,6 +2982,9 @@ const actorForLoginArgs = (args = []) => {
     if (user && passwordMatches(user, password)) {
         actor = findActorById(user.actorId) || null;
         log(`[LOGIN AUTH] username=${username || ''} matched user actorId=${user.actorId} actor=${actor ? 'found' : 'missing-in-actors'}`);
+    } else if (process.env.MSP_DEV_MODE === '1') {
+        actor = findActorById(DEV_ACTOR_ID) || null;
+        log(`[LOGIN AUTH] DEV MODE: returning dev actor for username=${username || ''}`);
     } else {
         log(`[LOGIN AUTH] username=${username || ''} FAILED user=${user ? 'found-but-wrong-password' : 'not-found'}`);
     }

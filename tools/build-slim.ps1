@@ -9,14 +9,19 @@
 
 [CmdletBinding()]
 param(
-    [string]$OutputDir = ""
+    [string]$OutputDir = "",
+    [switch]$Developer
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoDir = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-    $OutputDir = Join-Path $repoDir "dist\MSP-2010"
+    if ($Developer) {
+        $OutputDir = Join-Path $repoDir "dist\MSP-2010-Dev"
+    } else {
+        $OutputDir = Join-Path $repoDir "dist\MSP-2010"
+    }
 }
 
 $appDirPath = [System.IO.Path]::GetFullPath((Join-Path $repoDir "MSP-win32-x64\resources\app"))
@@ -84,7 +89,8 @@ if (-not $cscPath) {
 }
 if (-not $cscPath) { throw "Brak csc.exe - nie mozna skompilowac MSP.exe" }
 $mspExe = Join-Path $outputPath "MSP.exe"
-& $cscPath /nologo /target:winexe /out:$mspExe $launcherCs
+$targetType = if ($Developer) { "exe" } else { "winexe" }
+& $cscPath /nologo /target:$targetType /out:$mspExe $launcherCs
 if ($LASTEXITCODE -ne 0) { throw "Kompilacja MSP.exe zakonczyla sie kodem $LASTEXITCODE" }
 
 # ---------------------------------------------------------------------------
@@ -97,9 +103,12 @@ foreach ($file in @("app.js", "logo.png")) {
     Copy-Item -LiteralPath (Join-Path $appDirPath $file) -Destination (Join-Path $appOut $file) -Force
 }
 
+$debugFlag = if ($Developer) { "1" } else { "0" }
+$devModeFlag = if ($Developer) { "1" } else { "0" }
 $envContent = @"
 # MSP 2010 - konfiguracja klienta (wygenerowane automatycznie)
-MSP_DEBUG=0
+MSP_DEBUG=$debugFlag
+MSP_DEV_MODE=$devModeFlag
 MSP_SERVER_ONLY=0
 MSP_LOCALE=pl_PL
 REMOTE_ASSET_BASE_URL=https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev/2010

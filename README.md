@@ -6,9 +6,10 @@ Lekki klient prywatnego serwera **MSP 2010** (MovieStarPlanet 2010) oparty na El
 
 [![Pobierz instalator](https://img.shields.io/badge/Pobierz-MSP--2010--Setup.exe-2ea44f?style=for-the-badge&logo=windows)](https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Setup.exe)
 
-- **Instalator** – `MSP-2010-Setup.exe` (ok. 480 KB). Podczas instalacji pobiera najnowszą, odchudzoną paczkę gry (ok. 56 MB).
-- **Wersja portable** – [`MSP-2010-Slim-win64.zip`](https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64.zip) (ok. 86 MB). Rozpakuj i uruchom `MSP.exe`.
-- **Mniejsza paczka** – [`MSP-2010-Slim-win64.7z`](https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64.7z) (ok. 56 MB, wymaga 7-Zip).
+- **Instalator** – `MSP-2010-Setup.exe` (ok. 480 KB). Podczas instalacji pobiera najnowszą, odchudzoną paczkę gry (ok. 26 MB).
+- **Wersja portable** – [`MSP-2010-Slim-win64.zip`](https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64.zip) (ok. 39 MB). Rozpakuj i uruchom `MSP.exe`.
+- **Mniejsza paczka** – [`MSP-2010-Slim-win64.7z`](https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64.7z) (ok. 26 MB, wymaga 7-Zip).
+- **Wersja developerska** – `MSP-2010-Dev-Setup.exe` (tryb debug, panel dev, auto-login admin). Dla administratorów/developerów.
 
 Wszystkie wersje: [Releases](https://github.com/oxvkarr/msp-2010/releases/latest).
 
