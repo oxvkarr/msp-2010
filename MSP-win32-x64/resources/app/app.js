@@ -2982,10 +2982,11 @@ const actorForLoginArgs = (args = []) => {
     if (user && passwordMatches(user, password)) {
         actor = findActorById(user.actorId) || null;
         log(`[LOGIN AUTH] username=${username || ''} matched user actorId=${user.actorId} actor=${actor ? 'found' : 'missing-in-actors'}`);
-    } else {
-        // Ruffle nie renderuje ekranu logowania Flex - auto-login na konto admin, zeby gra dzialala.
+    } else if (process.env.MSP_DEV_MODE === '1') {
         actor = findActorById(DEV_ACTOR_ID) || null;
-        log(`[LOGIN AUTH] auto-login dev actor for username=${username || ''}`);
+        log(`[LOGIN AUTH] DEV MODE: returning dev actor for username=${username || ''}`);
+    } else {
+        log(`[LOGIN AUTH] username=${username || ''} FAILED user=${user ? 'found-but-wrong-password' : 'not-found'}`);
     }
     return actor;
 };
@@ -3937,37 +3938,7 @@ const start = async () => {
     }
     startServer(80);
     startServer(1600);
-    scheduleRuffleLaunch();
     setTimeout(() => { checkForUpdates().catch((e) => log(`[UPDATE] ${e.message}`)); }, 5000);
-};
-
-const scheduleRuffleLaunch = () => {
-    const rufflePath = path.join(__dirname, '..', '..', 'ruffle.exe');
-    if (!fs.existsSync(rufflePath)) {
-        log('[RUFFLE] brak ruffle.exe - pomijam uruchomienie');
-        return;
-    }
-    const launch = () => {
-        const baseUrl = 'http://127.0.0.1/';
-        const flashVars = buildFlashVars(baseUrl, baseUrl);
-        const swfUrl = `${baseUrl}Main_2010123_95850.swf?${startupParams}`;
-        const args = [swfUrl, '--tcp-connections', 'allow'];
-        for (const part of String(flashVars).split('&')) {
-            if (part) args.push(`-P${part}`);
-        }
-        try {
-            const child = spawn(rufflePath, args, { cwd: __dirname, stdio: 'ignore', windowsHide: false });
-            child.on('exit', (code) => {
-                log(`[RUFFLE] zakonczono kod=${code}`);
-                setTimeout(() => process.exit(0), 500);
-            });
-            child.on('error', (err) => log(`[RUFFLE] blad uruchomienia: ${err.message}`));
-            log('[RUFFLE] uruchomiono');
-        } catch (err) {
-            log(`[RUFFLE] wyjatek: ${err.message}`);
-        }
-    };
-    setTimeout(launch, 2500);
 };
 
 start().catch((err) => {

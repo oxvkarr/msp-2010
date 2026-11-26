@@ -102,7 +102,7 @@ jobs:
 
           Wymagania: Windows 10/11 x64, polaczenie z internetem.
 
-          Klient uzywa Ruffle (emulatora Flash w Rust) zamiast ciezkiego Electrona i Flash Playera. Paczka bez debug exe i bez dev node_modules.
+          Klient uzywa Electrona i Flash Playera (bez debug exe i bez dev node_modules). Pelne wsparcie logowania i kreatora postaci.
           "@
           Set-Content -LiteralPath "dist\release-notes.md" -Value $notes -Encoding UTF8
 
