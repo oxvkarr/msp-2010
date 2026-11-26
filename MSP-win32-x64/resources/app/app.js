@@ -28,7 +28,7 @@ const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
 const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE === '1';
 const remoteGatewayUrl = (process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
-const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 15000);
+const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 5000);
 const realMspProxyEnabled = process.env.REAL_MSP_PROXY === '1';
 const realMspServer = (process.env.REAL_MSP_SERVER || 'pl').toLowerCase() === 'uk' ? 'gb' : (process.env.REAL_MSP_SERVER || 'pl').toLowerCase();
 const realMspGatewayUrl = `https://ws-${realMspServer}.mspapis.com/Gateway.aspx`;
@@ -3925,7 +3925,8 @@ const checkForUpdates = async () => {
 
 const start = async () => {
     db = await loadDb();
-    await warmRemoteGateway();
+    // Warmup Rendera nie blokuje startu serwera (cold start moze trwac 60s).
+    warmRemoteGateway().catch(() => {}).then((ok) => log(`[REMOTE GATEWAY] warmup ${ok ? 'ok' : 'skip'}`));
     await preloadSwfAssets();
     writeServerPid();
     if (configuredPort) {
