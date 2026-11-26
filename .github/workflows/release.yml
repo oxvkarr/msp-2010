@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "MSP-win32-x64/resources/app/app.js"
+      - "MSP-win32-x64/resources/app/main.js"
+      - "MSP-win32-x64/resources/app/package.json"
       - "MSP-win32-x64/resources/app/logo.png"
       - "installer/**"
       - "tools/**"

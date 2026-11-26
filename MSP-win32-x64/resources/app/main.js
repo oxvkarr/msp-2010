@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const resolveRuntimePath = (...parts) => {
     const packedPath = path.join(__dirname, ...parts);
@@ -127,7 +128,7 @@ const ensureTermsAccepted = async () => {
     return true;
 };
 
-const waitForLocalServer = (attempts = 300) => new Promise((resolve) => {
+const waitForLocalServer = (attempts = 60) => new Promise((resolve) => {
     const check = (left) => {
         const req = require('http').get(`${LOCAL_BASE_URL}/play.html`, (res) => {
             res.resume();
@@ -257,18 +258,6 @@ async function createWindow() {
     if (isDebugMode) {
         debugLog('[WINDOW] createWindow start');
     }
-    const accepted = await ensureTermsAccepted();
-    if (!accepted) {
-        if (isDebugMode) {
-            debugLog('[WINDOW] terms rejected, quitting');
-        }
-        app.quit();
-        return;
-    }
-
-    redirectExternalMspRequests();
-    await clearLocalCaches();
-
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -280,6 +269,19 @@ async function createWindow() {
             webSecurity: false
         }
     });
+
+    const showStatus = (message) => mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(
+        '<!doctype html><html lang="pl"><meta charset="utf-8"><title>MSP 2010</title>' +
+        '<style>body{font:18px Arial;background:#f3f6fb;color:#202a45;display:grid;place-items:center;height:100vh;margin:0}main{text-align:center;max-width:600px;padding:24px}</style>' +
+        '<main><h1>MSP 2010</h1><p>' + message + '</p></main></html>'
+    ));
+    await showStatus('Uruchamianie gry…');
+    const accepted = await ensureTermsAccepted();
+    if (!accepted) {
+        app.quit();
+        return;
+    }
+    redirectExternalMspRequests();
 
     if (isDebugMode) {
         mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -300,8 +302,10 @@ async function createWindow() {
         });
     }
     const ready = await waitForLocalServer();
-    if (!ready && isDebugMode) {
+    if (!ready) {
         debugLog('[LOCAL SERVER] timed out waiting for /play.html');
+        await showStatus('Nie udało się uruchomić lokalnego serwera gry. Zamknij wszystkie okna MSP i uruchom grę ponownie.');
+        return;
     }
     const playBaseUrl = useFiddlerProxy ? fiddlerBaseUrl : LOCAL_BASE_URL;
     mainWindow.loadURL(`${playBaseUrl}/play.html?${PLAY_PARAMS}${isDebugMode ? '&debug=1' : ''}${useFiddlerProxy ? '&fiddler=1' : ''}`);
