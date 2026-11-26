@@ -1490,6 +1490,9 @@ app.get(/^\/(?:MSP_alpha_blob_)?lookdata_[0-9_]+$/i, (req, res) => {
 
 app.get(/^\/Main_2010123_95850\.swf$/i, async (req, res, next) => {
     // Main tez bierzemy najpierw z publicznego R2, dopiero potem z lokalnego public/.
+    if (await serveRemoteAsset(req, res, 'main_2010123_95850_patched_v1.swf')) {
+        return;
+    }
     if (await serveRemoteAsset(req, res, 'Main_2010123_95850.swf')) {
         return;
     }
@@ -1509,6 +1512,9 @@ app.get(/^\/Main_2010123_95850\.swf$/i, async (req, res, next) => {
 });
 
 app.get(/^\/+main_2010123_95850\.swf$/i, async (req, res, next) => {
+    if (await serveRemoteAsset(req, res, 'main_2010123_95850_patched_v1.swf')) {
+        return;
+    }
     if (await serveRemoteAsset(req, res, 'Main_2010123_95850.swf')) {
         return;
     }
