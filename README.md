@@ -86,6 +86,19 @@ Instalator zawsze pobiera najnowszą paczkę z:
 https://github.com/oxvkarr/msp-2010/releases/latest/download/MSP-2010-Slim-win64.7z
 ```
 
+## MongoDB Atlas (trwały zapis)
+
+Aby konta i postacie były zapisywane w MongoDB Atlas zamiast lokalnego JSON:
+
+1. Utwórz klaster w MongoDB Atlas, baza `msp_2010`.
+2. W pliku `resources/app/.env` ustaw:
+   ```
+   MONGODB_URI=mongodb+srv://USER:PASS@HOST/msp_2010?appName=msp-2010
+   ```
+3. Zrestartuj klienta. Serwer połączy się z Atlasem i zapisze stan w kolekcji `state`.
+
+Bez `MONGODB_URI` gra używa lokalnego `msp-db.json` (działa offline).
+
 ## Uwagi
 
 - To nieoficjalny, prywatny serwer. Nie używaj haseł z prawdziwego konta MovieStarPlanet.

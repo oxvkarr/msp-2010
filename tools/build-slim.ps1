@@ -156,6 +156,9 @@ REMOTE_ASSET_CACHE=0
 REMOTE_GATEWAY_URL=https://msp-2010-api.onrender.com
 USE_REMOTE_GATEWAY=1
 REMOTE_GATEWAY_TIMEOUT_MS=20000
+# Opcjonalnie: MongoDB Atlas (trwały zapis kont/postaci). Zostaw puste = lokalny JSON.
+MONGODB_URI=
+MONGO_URI=
 "@
 Set-Content -LiteralPath (Join-Path $appOut ".env") -Value $envContent -Encoding ASCII
 
