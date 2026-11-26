@@ -12,7 +12,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
 
 const publicPath = path.join(__dirname, 'public');
-const assetCachePath = path.join(__dirname, 'asset-cache');
+const assetCachePath = process.env.LOCALAPPDATA && process.env.MSP_SERVER_ONLY !== '1' && !process.argv.includes('--server')
+    ? path.join(process.env.LOCALAPPDATA, 'MSP 2010', 'asset-cache')
+    : path.join(__dirname, 'asset-cache');
 const amfDumpPath = path.join(__dirname, 'amf-dumps');
 const dbPath = path.join(__dirname, 'msp-db.json');
 const debugLogPath = path.join(__dirname, 'msp-debug.log');
@@ -28,6 +30,7 @@ const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
 const remoteAssetCacheEnabled = process.env.REMOTE_ASSET_CACHE === '1';
 const remoteGatewayUrl = (process.env.REMOTE_GATEWAY_URL || defaultRemoteGatewayUrl).replace(/\/+$/, '');
+const remoteSoapUrl = (process.env.REMOTE_SOAP_URL || 'https://msp-2010-api.onrender.com').replace(/\/+$/, '');
 const remoteGatewayTimeoutMs = Number(process.env.REMOTE_GATEWAY_TIMEOUT_MS || 5000);
 const realMspProxyEnabled = process.env.REAL_MSP_PROXY === '1';
 const realMspServer = (process.env.REAL_MSP_SERVER || 'pl').toLowerCase() === 'uk' ? 'gb' : (process.env.REAL_MSP_SERVER || 'pl').toLowerCase();
@@ -994,10 +997,10 @@ const proxyGatewayRequest = (req, res, method, fallbackHandler) => {
 
 // DODANE v19: proxy nie tylko /Gateway.aspx, ale tez SOAP /WebService/Service.asmx do Rendera.
 // Nic lokalnego nie usuwamy: jesli Render padnie albo zwroci 5xx, wracamy do starego lokalnego handlera.
-const proxyRemotePathRequest = (req, res, remotePath, label, fallbackHandler) => {
-    if (!remoteGatewayUrl) return false;
+const proxyRemotePathRequest = (req, res, remotePath, label, fallbackHandler, baseUrl = remoteGatewayUrl) => {
+    if (!baseUrl) return false;
 
-    const targetUrl = new URL(`${remoteGatewayUrl}${remotePath}`);
+    const targetUrl = new URL(`${baseUrl}${remotePath}`);
     const originalUrl = req.originalUrl || req.url || '';
     const qIndex = originalUrl.indexOf('?');
     if (qIndex !== -1) {
@@ -1319,14 +1322,12 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
     ] : [];
 
     const candidates = [
-        ...legacyMspAssetCandidates(cleanPath, query),
         ...(aliasPath ? [
             `${remoteAssetBaseUrl}/${aliasPath}${query}`,
             `${remoteAssetBaseUrl}/${aliasPath.toLowerCase()}${query}`
         ] : []),
         `${remoteAssetBaseUrl}/${cleanPath}${query}`,
-        `${remoteAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`,
-        ...officialAssetCandidates
+        `${remoteAssetBaseUrl}/${cleanPath.toLowerCase()}${query}`
     ];
 
     for (const remoteUrl of candidates) {
@@ -1905,6 +1906,10 @@ app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
         return;
     }
 
+    if (!isServerOnly) {
+        proxyRemotePathRequest(req, res, '/WebService/Service.asmx', 'SOAP', null, remoteSoapUrl);
+        return;
+    }
     const action = soapActionFrom(req);
     if (shouldHandleSoapBeforeRemote(action)) {
         log(`[SOAP LOCAL FIRST] action=${action}`);
@@ -1925,8 +1930,8 @@ app.all(/^\/+WebService\/+Service\.asmx\/?$/i, (req, res) => {
 
 app.all(/^\/+WebService\/User\/UserService\.asmx$/i, (req, res) => {
     const action = soapActionFrom(req);
-    const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8').replace(/\s+/g, ' ').slice(0, 220) : '';
-    log(`[SOAP USER] ${req.method} ${req.url} action=${action} body=${body}`);
+    // SOAP bodies may contain passwords and session tickets.
+    log(`[SOAP USER] ${req.method} ${req.url} action=${action}`);
 
     if (req.method === 'GET' || /wsdl/i.test(req.url)) {
         res.type('text/xml').send(userServiceWsdl);
@@ -3697,6 +3702,9 @@ const handleLocalGatewayRequest = async (req, res, fallbackReason = '') => {
 
 app.all('/Gateway.aspx', async (req, res) => {
     const method = req.query.method || '';
+    // The 2010 client uses SOAP. Do not send AMF to the SOAP backend or
+    // silently create a separate local account if an AMF request appears.
+    if (!isServerOnly) return res.status(501).type('text/plain').send('AMF gateway is not configured');
     if (proxyRealMspApiRequest(req, res, method, (reason) => handleLocalGatewayRequest(req, res, reason))) {
         return;
     }
@@ -3775,7 +3783,7 @@ app.use((req, res) => {
     res.status(404).type('text/plain').send(`Missing local file/route: ${req.url}`);
 });
 const startServer = (port) => {
-    app.listen(port, '0.0.0.0', () => {
+    app.listen(port, isServerOnly || configuredPort ? '0.0.0.0' : '127.0.0.1', () => {
         log(`Serwer czeka na porcie ${port}...`);
     }).on('error', (err) => {
         if (err.code === 'EADDRINUSE') {

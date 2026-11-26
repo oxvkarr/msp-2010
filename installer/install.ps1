@@ -35,23 +35,12 @@ try {
         throw "Pobrany plik jest za maly - to prawdopodobnie blad serwera."
     }
 
-    # Zamknij dzialajace instancje, zeby nie blokowac plikow (d3dcompiler_47.dll itp.)
-    foreach ($procName in @('MSP', 'electron', 'node')) {
-        Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # Never terminate unrelated Node/Electron apps or erase a user-selected directory.
+    $targetExe = [System.IO.Path]::GetFullPath((Join-Path $OutDir 'MSP.exe'))
+    $running = Get-Process -Name MSP -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.Path -and [string]::Equals($_.Path, $targetExe, [StringComparison]::OrdinalIgnoreCase) } catch { $false }
     }
-    Start-Sleep -Seconds 1
-
-    if (Test-Path $OutDir) {
-        # Retry usuniecia (Windows moze trzymac uchwyty)
-        for ($i = 0; $i -lt 5; $i++) {
-            try {
-                Remove-Item -LiteralPath $OutDir -Recurse -Force -ErrorAction Stop
-                break
-            } catch {
-                Start-Sleep -Seconds 1
-            }
-        }
-    }
+    if ($running) { throw 'Zamknij MSP 2010 przed instalacja.' }
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
     $extracted = $false
