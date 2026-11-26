@@ -1,0 +1,114 @@
+name: Build installer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "MSP-win32-x64/resources/app/app.js"
+      - "MSP-win32-x64/resources/app/main.js"
+      - "MSP-win32-x64/resources/app/package.json"
+      - "MSP-win32-x64/resources/app/package-lock.json"
+      - "MSP-win32-x64/resources/app/pepflashplayer.dll"
+      - "MSP-win32-x64/resources/app/logo.png"
+      - "installer/**"
+      - "tools/build-slim.ps1"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: msp-installer-release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build slim payload
+        shell: pwsh
+        run: ./tools/build-slim.ps1
+
+      - name: Pack payload (ZIP + 7z)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & "C:\Program Files\7-Zip\7z.exe" a -tzip -mx=9 "dist\MSP-2010-Slim-win64.zip" ".\dist\MSP-2010\*"
+          if ($LASTEXITCODE -ne 0) { throw "7-Zip (ZIP) zakonczyl sie kodem $LASTEXITCODE" }
+          & "C:\Program Files\7-Zip\7z.exe" a -t7z -mx=9 "dist\MSP-2010-Slim-win64.7z" ".\dist\MSP-2010\*"
+          if ($LASTEXITCODE -ne 0) { throw "7-Zip (7z) zakonczyl sie kodem $LASTEXITCODE" }
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DOUTDIR="$PWD\dist" installer\MSP-2010.nsi
+          if ($LASTEXITCODE -ne 0) { throw "makensis zakonczyl sie kodem $LASTEXITCODE" }
+
+      - name: Checksums and release notes
+        shell: pwsh
+        run: |
+          $zip = Get-Item "dist\MSP-2010-Slim-win64.zip"
+          $seven = Get-Item "dist\MSP-2010-Slim-win64.7z"
+          $setup = Get-Item "dist\MSP-2010-Setup.exe"
+          $zipMb = [math]::Round($zip.Length / 1MB, 1)
+          $sevenMb = [math]::Round($seven.Length / 1MB, 1)
+          $setupKb = [math]::Round($setup.Length / 1KB, 0)
+
+          $lines = @()
+          foreach ($file in @($setup, $seven, $zip)) {
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLower()
+            $lines += "$hash  $($file.Name)"
+          }
+          Set-Content -LiteralPath "dist\SHA256SUMS.txt" -Value $lines -Encoding ASCII
+
+          $notes = @"
+          ## MSP 2010 - najnowsza wersja
+
+          - **MSP-2010-Setup.exe** ($setupKb KB) - lekki instalator. Pobiera gre dopiero podczas instalacji (ok. $sevenMb MB).
+          - **MSP-2010-Slim-win64.zip** ($zipMb MB) - wersja portable (rozpakuj i uruchom ``MSP.exe``).
+          - **MSP-2010-Slim-win64.7z** ($sevenMb MB) - mniejsza paczka dla osob, ktore maja 7-Zip.
+
+          ### Instalacja
+
+          1. Pobierz ``MSP-2010-Setup.exe``.
+          2. Uruchom plik. Windows SmartScreen moze pokazac ostrzezenie, bo instalator nie jest podpisany - wybierz **Wiecej informacji**, a potem **Uruchom mimo to**.
+          3. Kliknij **Dalej**. Instalator sam pobierze najnowsza wersje z GitHuba i utworzy skroty.
+
+          Wymagania: Windows 10/11 x64, polaczenie z internetem.
+
+          Instalator nie zawiera ciezkiego Electrona ani Flasha - pobiera gotowa, odchudzona paczke (bez debug exe i bez dev node_modules).
+          "@
+          Set-Content -LiteralPath "dist\release-notes.md" -Value $notes -Encoding UTF8
+
+          Write-Host "Setup: $setupKb KB"
+          Write-Host "Portable ZIP: $zipMb MB"
+          Write-Host "Portable 7z: $sevenMb MB"
+
+      - name: Publish latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "MSP 2010 - instalator"
+          body_path: dist/release-notes.md
+          files: |
+            dist/MSP-2010-Setup.exe
+            dist/MSP-2010-Slim-win64.zip
+            dist/MSP-2010-Slim-win64.7z
+            dist/SHA256SUMS.txt
+          make_latest: true

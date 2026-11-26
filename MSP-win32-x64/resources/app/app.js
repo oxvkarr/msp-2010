@@ -1227,6 +1227,24 @@ const registrationAssetAlias = (cleanPath) => {
     if (normalized === 'swf/footwear/shoes_male.swf') {
         return 'swf/footwear/shoes_1.swf';
     }
+    const wardrobeMatch = normalized.match(/^swf\/(hair|tops|bottoms|footwear)\/(.+)\.swf$/);
+    if (wardrobeMatch) {
+        const requestedBase = wardrobeMatch[2].replace(/\s*\([^)]*\)\s*$/, '');
+        try {
+            const found = starterClothes().find((rel) => {
+                const item = rel.Cloth || rel;
+                const filename = String(item && item.Filename || '');
+                const base = filename.replace(/\.swf$/i, '').replace(/\s*\([^)]*\)\s*$/, '').toLowerCase();
+                return base === requestedBase.toLowerCase();
+            });
+            const item = found && (found.Cloth || found);
+            if (item && item.Filename) {
+                return `swf/${wardrobeMatch[1]}/${item.Filename}`;
+            }
+        } catch (_) {
+            // Ignore alias lookup problems and fall through to the default candidates.
+        }
+    }
     return null;
 };
 
@@ -1328,6 +1346,10 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
 
     return false;
 };
+
+app.post(['/fcs/ident2', '/open/1', '/fcs/*'], (req, res) => {
+    res.status(200).send('');
+});
 
 app.get(['/languagemaps.txt', '/localization/languagemaps.txt'], async (req, res) => {
     log(`[LANGMAP] ${req.url} -> forced pl_PL`);
@@ -1653,7 +1675,19 @@ const soapXmlNode = (name, value, depth = 0) => {
 
 const soapRegisterNewUserDataXml = () => {
     const node = (name, value) => `<${name}>${xmlEscape(value)}</${name}>`;
-    const clothingSwf = (filename) => path.basename(String(filename || ''), '.swf');
+    const categoryNames = { 1: 'Hair', 2: 'Tops', 3: 'Bottoms', 10: 'Footwear' };
+    const slotTypeIdFor = (categoryId) => ({ 1: 2, 2: 3, 3: 4, 10: 5 }[Number(categoryId)] || Number(categoryId));
+    const swfClassAliases = {
+        top_2_Honey: 'top2_Honey',
+        top_3_Honey: 'top3_Honey',
+        top_4_Honey: 'Top4',
+        Honey_bottoms_10: 'Honey_Female_bottoms_10',
+        Honey_bottoms_9: 'Honey_Female_bottoms_9'
+    };
+    const clothingSwf = (filename) => {
+        const base = path.basename(String(filename || ''), '.swf').replace(/\s*\([^)]*\)\s*$/, '');
+        return swfClassAliases[base] || base;
+    };
     const face = (tag, idName, id, swf, colors = '', skinId = 0) => `<${tag}>`
         + node(idName, id)
         + node('Name', '')
@@ -1661,9 +1695,12 @@ const soapRegisterNewUserDataXml = () => {
         + node('SkinId', skinId)
         + node('DefaultColors', colors)
         + `</${tag}>`;
-    const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => `<Cloth>`
+    const cloth = (id, cat, swf, filename, colors = '', skinId = 0, reg = 1) => {
+        const slotTypeId = slotTypeIdFor(cat);
+        const categoryName = categoryNames[cat] || '';
+        return `<Cloth>`
         + node('ClothesId', id)
-        + node('Name', '')
+        + node('Name', path.basename(String(filename || ''), '.swf'))
         + node('SWF', clothingSwf(filename))
         + node('ClothesCategoryId', cat)
         + node('Price', 0)
@@ -1671,19 +1708,20 @@ const soapRegisterNewUserDataXml = () => {
         + node('SkinId', skinId)
         + node('Filename', filename)
         + node('Scale', 1)
-        + node('Vip', false)
+        + node('Vip', 0)
         + node('RegNewUser', reg)
         + node('sortorder', id)
-        + node('New', false)
+        + node('New', 0)
         + node('Discount', 0)
         + node('ColorScheme', colors)
         + `<ClothesCategory>`
         + node('ClothesCategoryId', cat)
-        + node('Name', '')
-        + node('SlotTypeId', cat)
-        + `<SlotType>${node('SlotTypeId', cat)}${node('Name', '')}</SlotType>`
+        + node('Name', categoryName)
+        + node('SlotTypeId', slotTypeId)
+        + `<SlotType>${node('SlotTypeId', slotTypeId)}${node('Name', categoryName)}</SlotType>`
         + `</ClothesCategory>`
         + `</Cloth>`;
+    };
     const rel = (id, colors = '', clothXml = '') => `<ActorClothesRel>`
         + node('ActorClothesRelId', id)
         + node('_ActorClothesRelId', id)
@@ -1693,8 +1731,8 @@ const soapRegisterNewUserDataXml = () => {
         + node('_ClothesId', id)
         + node('Color', colors)
         + node('_Color', colors)
-        + node('IsWearing', true)
-        + node('_IsWearing', true)
+        + node('IsWearing', 1)
+        + node('_IsWearing', 1)
         + node('x', 0)
         + node('y', 0)
         + clothXml
@@ -2246,15 +2284,21 @@ const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
     const isFemale = gender === 'Female';
     const regNewUser = registerFlagForGender(gender);
     const swfName = path.basename(String(filename || swf || ''), '.swf');
+    const categoryName = { 1: 'Hair', 2: 'Tops', 3: 'Bottoms', 10: 'Footwear' }[Number(clothesCategoryId)] || '';
+    const slotTypeId = { 1: 2, 2: 3, 3: 4, 10: 5 }[Number(clothesCategoryId)] || Number(clothesCategoryId);
     const slotType = typed(SLOT_TYPE_ALIAS, {
-        SlotTypeId: clothesCategoryId,
-        _SlotTypeId: clothesCategoryId
+        SlotTypeId: slotTypeId,
+        Name: categoryName,
+        _SlotTypeId: slotTypeId,
+        _Name: categoryName
     });
     const clothesCategory = typed(CLOTHES_CATEGORY_ALIAS, {
         ClothesCategoryId: clothesCategoryId,
+        Name: categoryName,
         _ClothesCategoryId: clothesCategoryId,
-        SlotTypeId: clothesCategoryId,
-        _SlotTypeId: clothesCategoryId,
+        _Name: categoryName,
+        SlotTypeId: slotTypeId,
+        _SlotTypeId: slotTypeId,
         SlotType: slotType,
         _SlotType: slotType
     });
@@ -2312,8 +2356,8 @@ const cloth = (id, swf, filename, clothesCategoryId, gender, colors = '') => {
         _ClothesId: id,
         Color: colors,
         _Color: colors,
-        IsWearing: true,
-        _IsWearing: true,
+        IsWearing: 1,
+        _IsWearing: 1,
         x: 0,
         _x: 0,
         y: 0,
@@ -2382,12 +2426,14 @@ const loginActorClothesRels = (gender = 'Male') => starterOutfit(gender).map((re
     _ClothesId: rel._ClothesId,
     Color: rel.Color,
     _Color: rel._Color,
-    IsWearing: rel.IsWearing,
-    _IsWearing: rel._IsWearing,
+    IsWearing: 1,
+    _IsWearing: 1,
     x: rel.x,
     _x: rel._x,
     y: rel.y,
-    _y: rel._y
+    _y: rel._y,
+    Cloth: rel.Cloth,
+    _Cloth: rel.Cloth
 }));
 
 const relSlot = (rel) => {

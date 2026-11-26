@@ -46,7 +46,8 @@ const localHostRules = [
     'MAP content.mspcdns.com 127.0.0.1',
     'MAP assets.mspcdns.com 127.0.0.1',
     'MAP locales.mspcdns.com 127.0.0.1',
-    'MAP mspcdns.com 127.0.0.1'
+    'MAP mspcdns.com 127.0.0.1',
+    'MAP helloserver 127.0.0.1'
 ].join(', ');
 
 app.commandLine.appendSwitch('ppapi-flash-path', flashPath);
