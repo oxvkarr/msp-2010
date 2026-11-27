@@ -107,7 +107,7 @@ let mongoDatabase = null;
 let dbSource = 'json';
 let amfDumpCounter = 0;
 const recentLogs = [];
-const isDebugLogRequest = (req) => req.path === '/api/debug/logs' || req.path === '/api/db/status';
+const isDebugLogRequest = (req) => req.path === '/api/debug/logs' || req.path === '/api/db/status' || /^\/(?:idle|send|close)\//.test(req.path);
 const log = (message) => {
     const line = `${new Date().toISOString()} ${message}`;
     recentLogs.push(line);
@@ -1407,9 +1407,7 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
     return false;
 };
 
-app.post(['/fcs/ident2', '/open/1', '/fcs/*'], (req, res) => {
-    res.status(200).send('');
-});
+app.use(require('./rtmpt-proxy').router(remoteSoapUrl));
 
 app.get(['/languagemaps.txt', '/localization/languagemaps.txt'], async (req, res) => {
     log(`[LANGMAP] ${req.url} -> forced pl_PL`);
@@ -1493,7 +1491,7 @@ app.get(/^\/(?:MSP_alpha_blob_)?lookdata_[0-9_]+$/i, (req, res) => {
 
 app.get(/^\/Main_2010123_95850\.swf$/i, async (req, res, next) => {
     // Main tez bierzemy najpierw z publicznego R2, dopiero potem z lokalnego public/.
-    if (await serveRemoteAsset(req, res, 'main_2010123_95850_patched_v1.swf')) {
+    if (await serveRemoteAsset(req, res, 'main_2010123_95850_rtmpt_v1.swf')) {
         return;
     }
     if (await serveRemoteAsset(req, res, 'Main_2010123_95850.swf')) {
@@ -1515,7 +1513,7 @@ app.get(/^\/Main_2010123_95850\.swf$/i, async (req, res, next) => {
 });
 
 app.get(/^\/+main_2010123_95850\.swf$/i, async (req, res, next) => {
-    if (await serveRemoteAsset(req, res, 'main_2010123_95850_patched_v1.swf')) {
+    if (await serveRemoteAsset(req, res, 'main_2010123_95850_rtmpt_v1.swf')) {
         return;
     }
     if (await serveRemoteAsset(req, res, 'Main_2010123_95850.swf')) {
@@ -2035,18 +2033,8 @@ app.use(express.static(publicPath, {
     }
 }));
 
-app.get('/DibsPrepare.aspx', async (req, res) => {
-    const actorId = Number(req.query.actorId || 0);
-    const key = String(req.query.key || '');
-    if (actorId && key) {
-        try {
-            await fetch(`${remoteSoapUrl}/api/claim-free-vip?actorId=${actorId}&key=${encodeURIComponent(key)}`);
-            log(`[DIBS] claimed free VIP for actor ${actorId} key ${key}`);
-        } catch (e) {
-            log(`[DIBS] claim failed: ${e.message}`);
-        }
-    }
-    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body style="font-family:Arial,sans-serif;text-align:center;padding:40px;"><h1>Payment successful</h1><p>Your VIP and StarCoins have been added.</p><p>Return to the game and click "Completed".</p></body></html>`);
+app.get('/DibsPrepare.aspx', (req, res) => {
+    res.status(503).type('html').send('<!doctype html><title>VIP</title><p>VIP activation is handled through the game for moderators.</p>');
 });
 
 app.get('*', async (req, res, next) => {
