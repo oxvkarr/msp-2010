@@ -24,7 +24,7 @@ const mongoDbName = process.env.MONGODB_DB || 'msp_2010';
 const mongoStateCollection = process.env.MONGODB_STATE_COLLECTION || 'state';
 const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev/2010';
 const officialMspAssetBaseUrl = (process.env.MSPCDN_ASSET_BASE_URL || 'https://assets.mspcdns.com/msp/103.1.40').replace(/\/+$/, '');
-const legacyMspAssetBaseUrl = 'https://content.mspcdns.com';
+const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
 const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
 const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
@@ -1306,7 +1306,10 @@ const registrationAssetAlias = (cleanPath) => {
 
 const legacyMspAssetCandidates = (cleanPath, query) => {
     const normalized = decodeURIComponent(String(cleanPath || '')).replace(/\\/g, '/').toLowerCase();
-    if (!/^(?:swf|graphics)\/.+\.swf$/.test(normalized)) {
+    if (!normalized || normalized.includes('..') || /^(?:api|localization|webservice)\//.test(normalized)) {
+        return [];
+    }
+    if (!remoteAssetExtensions.has(path.extname(normalized))) {
         return [];
     }
     return [
@@ -2031,6 +2034,20 @@ app.use(express.static(publicPath, {
         }
     }
 }));
+
+app.get('/DibsPrepare.aspx', async (req, res) => {
+    const actorId = Number(req.query.actorId || 0);
+    const key = String(req.query.key || '');
+    if (actorId && key) {
+        try {
+            await fetch(`${remoteSoapUrl}/api/claim-free-vip?actorId=${actorId}&key=${encodeURIComponent(key)}`);
+            log(`[DIBS] claimed free VIP for actor ${actorId} key ${key}`);
+        } catch (e) {
+            log(`[DIBS] claim failed: ${e.message}`);
+        }
+    }
+    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body style="font-family:Arial,sans-serif;text-align:center;padding:40px;"><h1>Payment successful</h1><p>Your VIP and StarCoins have been added.</p><p>Return to the game and click "Completed".</p></body></html>`);
+});
 
 app.get('*', async (req, res, next) => {
     if (await serveRemoteAsset(req, res, req.path.replace(/^\/+/, ''))) {
