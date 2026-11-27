@@ -34,7 +34,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 $appDirPath = [System.IO.Path]::GetFullPath($AppDir)
 $outputPath = [System.IO.Path]::GetFullPath($OutputDir)
 
-foreach ($required in @("app.js", "main.js", "pepflashplayer.dll")) {
+foreach ($required in @("app.js", "main.js", "rtmpt-proxy.js", "pepflashplayer.dll")) {
     if (-not (Test-Path (Join-Path $appDirPath $required))) {
         throw "Brak pliku $required w $appDirPath. Jesli to pepflashplayer.dll, uruchom: git lfs pull"
     }
@@ -136,7 +136,7 @@ foreach ($locale in @("en-US.pak", "pl.pak")) {
 $appOut = Join-Path $outputPath "resources\app"
 New-Item -ItemType Directory -Path $appOut -Force | Out-Null
 
-foreach ($file in @("app.js", "main.js", "logo.png", "pepflashplayer.dll")) {
+foreach ($file in @("app.js", "main.js", "rtmpt-proxy.js", "logo.png", "pepflashplayer.dll")) {
     Copy-Item -LiteralPath (Join-Path $appDirPath $file) -Destination (Join-Path $appOut $file) -Force
 }
 if ($IncludeLocalDb -and (Test-Path (Join-Path $appDirPath "msp-db.json"))) {
