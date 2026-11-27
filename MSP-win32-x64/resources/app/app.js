@@ -24,7 +24,7 @@ const mongoDbName = process.env.MONGODB_DB || 'msp_2010';
 const mongoStateCollection = process.env.MONGODB_STATE_COLLECTION || 'state';
 const defaultRemoteAssetBaseUrl = 'https://pub-2ec8e3c2f0a24e46ab1defac06482eb3.r2.dev/2010';
 const officialMspAssetBaseUrl = (process.env.MSPCDN_ASSET_BASE_URL || 'https://assets.mspcdns.com/msp/103.1.40').replace(/\/+$/, '');
-const legacyMspAssetBaseUrl = 'http://cdn.moviestarplanet.com';
+const legacyMspAssetBaseUrl = 'https://content.mspcdns.com';
 const defaultRemoteGatewayUrl = 'https://msp-2010.onrender.com';
 const BUILD = 'render-addon-no-dev-remove-v18';
 const remoteAssetBaseUrl = (process.env.REMOTE_ASSET_BASE_URL || defaultRemoteAssetBaseUrl).replace(/\/+$/, '');
@@ -1306,7 +1306,7 @@ const registrationAssetAlias = (cleanPath) => {
 
 const legacyMspAssetCandidates = (cleanPath, query) => {
     const normalized = decodeURIComponent(String(cleanPath || '')).replace(/\\/g, '/').toLowerCase();
-    if (!/^swf\/(?:animations|faceparts)\/.+\.swf$/.test(normalized)) {
+    if (!/^(?:swf|graphics)\/.+\.swf$/.test(normalized)) {
         return [];
     }
     return [
