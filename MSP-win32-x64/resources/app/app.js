@@ -408,6 +408,18 @@ const fallbackPlayHtml = (req) => {
             width: 6px;
             height: 6px;
         }
+        #online-count {
+            position: fixed;
+            bottom: 8px;
+            left: 8px;
+            z-index: 2;
+            padding: 4px 8px;
+            border-radius: 5px;
+            background: #161a21;
+            color: #fff;
+            font: 12px system-ui, sans-serif;
+            pointer-events: none;
+        }
         #debug-console.minimized #debug-resize {
             display: none;
         }
@@ -422,6 +434,7 @@ const fallbackPlayHtml = (req) => {
         <param name="flashvars" value="${flashVars}">
         <embed src="/Main_2010123_95850.swf?${startupParams}" allowScriptAccess="always" allowFullScreen="true" wmode="direct" flashvars="${flashVars}">
     </object>
+    <span id="online-count" hidden></span>
     <div id="debug-console">
         <header id="debug-drag">
             <span id="debug-title">MSP Dev Panel</span>
@@ -694,6 +707,20 @@ const fallbackPlayHtml = (req) => {
                 renderLog();
             };
             if (filter) filter.oninput = renderLog;
+            var onlineCount = document.getElementById('online-count');
+            async function pollOnlineCount() {
+                try {
+                    var response = await fetch('/api/presence', { cache: 'no-store' });
+                    if (!response.ok) throw new Error('Presence unavailable');
+                    var presence = await response.json();
+                    onlineCount.textContent = 'Gracze online: ' + presence.online;
+                    onlineCount.hidden = !Number.isSafeInteger(presence.online);
+                } catch (error) {
+                    onlineCount.hidden = true;
+                }
+                setTimeout(pollOnlineCount, 15000);
+            }
+            pollOnlineCount();
             console.log('Fallback play.html loaded');
             if (debug) {
                 var fiddlerMode = new URLSearchParams(location.search).get('fiddler') === '1';
@@ -3816,6 +3843,12 @@ app.get('/getConfig', (req, res) => {
         "mongoDbName": mongoDbName,
         "mongoStateCollection": mongoStateCollection
     });
+});
+
+app.get('/api/presence', (req, res) => {
+    if (!proxyRemotePathRequest(req, res, '/rtmpt/presence', 'PRESENCE', null, remoteSoapUrl)) {
+        res.sendStatus(503);
+    }
 });
 
 app.get('/api/db/status', (req, res) => {
