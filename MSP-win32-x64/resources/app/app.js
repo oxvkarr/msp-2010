@@ -943,9 +943,31 @@ const downloadRemoteAsset = (url, destination) => {
     return pending;
 };
 
+// Restore the RTMPT application path in the known legacy client build.
+const restoreRealtimeApplicationPath = (file) => {
+    const legacyHash = '28cac525baf107215c5f1a6392d728abc7218d99b1d661793ce5745447f49258';
+    if (crypto.createHash('sha256').update(file).digest('hex') !== legacyHash) return file;
+    const { inflateSync, deflateSync } = require('zlib');
+    const header = Buffer.from(file.subarray(0, 8));
+    const body = inflateSync(file.subarray(8));
+    // Bounded to the exact build above. The string sits in a DoABC tag.
+    const tagLengthOffset = 972899;
+    const stringOffset = 1466891;
+    const oldPath = Buffer.from('\x0bHelloServer', 'ascii');
+    const newPath = Buffer.from('\x17helloserver/HelloServer', 'ascii');
+    if (!body.subarray(stringOffset, stringOffset + oldPath.length).equals(oldPath)) {
+        throw new Error('Unexpected realtime configuration in SWF');
+    }
+    const delta = newPath.length - oldPath.length;
+    body.writeUInt32LE(body.readUInt32LE(tagLengthOffset) + delta, tagLengthOffset);
+    header.writeUInt32LE(body.length + delta + header.length, 4);
+    const updated = Buffer.concat([body.subarray(0, stringOffset), newPath, body.subarray(stringOffset + oldPath.length)]);
+    return Buffer.concat([header, deflateSync(updated)]);
+};
+
 const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
-    const request = client.get(url, (response) => {
+    const request = client.get(url, async (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
             response.resume();
             pipeRemoteAsset(new URL(response.headers.location, url).toString(), res, cleanPath).then(resolve, reject);
@@ -954,6 +976,28 @@ const pipeRemoteAsset = (url, res, cleanPath) => new Promise((resolve, reject) =
         if (response.statusCode !== 200) {
             response.resume();
             reject(new Error('HTTP ' + response.statusCode));
+            return;
+        }
+        if (cleanPath === 'main_2010123_95850_rtmpt_v1.swf') {
+            try {
+                const chunks = [];
+                let size = 0;
+                for await (const chunk of response) {
+                    size += chunk.length;
+                    if (size > 8 * 1024 * 1024) throw new Error('Main SWF exceeds size limit');
+                    chunks.push(chunk);
+                }
+                const file = Buffer.concat(chunks);
+                if (!['FWS', 'CWS', 'ZWS'].includes(file.toString('ascii', 0, 3))) {
+                    throw new Error('Invalid main SWF header');
+                }
+                res.set('Cache-Control', 'no-store').type(contentTypeFor(cleanPath));
+                res.send(restoreRealtimeApplicationPath(file));
+                log('[ASSET OK] ' + cleanPath + ' | HTTP 200 | ' + url);
+                resolve(true);
+            } catch (error) {
+                reject(error);
+            }
             return;
         }
         const isSwf = path.extname(cleanPath).toLowerCase() === '.swf';
@@ -1370,7 +1414,7 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
     const aliasPath = registrationAssetAlias(cleanPath);
     const cachePath = aliasPath || cleanPath;
     const cachedPath = path.join(assetCachePath, cachePath);
-    if (remoteAssetCacheEnabled) {
+    if (remoteAssetCacheEnabled && cleanPath !== 'main_2010123_95850_rtmpt_v1.swf') {
         const cacheCandidates = [cachedPath];
         if (!aliasPath) {
             try {
@@ -1417,7 +1461,7 @@ const serveRemoteAsset = async (req, res, cleanPath) => {
 
     for (const remoteUrl of candidates) {
         try {
-            if (remoteAssetCacheEnabled) {
+            if (remoteAssetCacheEnabled && cleanPath !== 'main_2010123_95850_rtmpt_v1.swf') {
                 await downloadRemoteAsset(remoteUrl, cachedPath);
                 log(`[REMOTE ASSET] ${req.url} -> ${remoteUrl}`);
                 res.type(contentTypeFor(cachedPath)).sendFile(cachedPath);
